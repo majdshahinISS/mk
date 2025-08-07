@@ -1,0 +1,342 @@
+# vim:set ft=l4mods:
+# Module configuration file for single image mode
+#
+# kernel, sigma0 and moe are always loaded automatically
+#
+# add kernel command line arguments with
+#  kernel fiasco arguments...
+# the second argument (here 'fiasco') is the binary name
+#
+# add sigma command line arguments with
+#  sigma0 sigma0 arguments...
+# the second argument (here 'sigma0') is the binary name
+#
+# add roottask command line arguments with
+#  roottask moe arguments...
+# the second argument (here 'moe') is the binary name
+#
+# modaddr: address where modules start, relative to begin of RAM
+#   this statement is either global (before first entry statement)
+#   or per entry
+#
+# 'module' variants
+# - module file: add file
+# - module[uncompress] module name: uncompress module (gzip) before adding it
+# - module[glob] /some/path/*.foo: add all file matching
+# - module[perl] perl-code: Perl code returns array of files to include
+# - module[shell] shell-code: Return list of files to include
+# - module[fname=FOO] /some/path/bar: The file 'bar' will be added as the
+#                                     module named 'FOO'.
+# - moe file.cfg: expands to
+#        roottask moe rom/file.cfg
+#        module file.cfg
+#
+# Modules can have an arbitrary number of attributes (key-value-pairs). The
+# attribute key must be prefixed by 'attr:':
+# - module[attr:nodes=0-3]: The attribute 'nodes' with the value '0-3'
+#
+# Define a module group:
+#  group oftenneedthose
+#  module one
+#  module two
+#  module ...
+#
+# Use a module group:
+#  entry someentry
+#  module-group oftenneedthose
+#
+# Include other module list files:
+#  include /path/to/other.list
+#
+# Set defaults:
+# - default-kernel: set default kernel including arguments
+# - default-sigma0: set default sigma0 including arguments
+# - default-roottask: set default roottask including arguments
+
+modaddr 0x01100000
+
+default-kernel fiasco -serial_esc
+default-bootstrap bootstrap
+
+entry myapp3
+roottask moe rom/myapp3.cfg
+module l4re
+module ned
+module ned-prompt
+module myapp2
+module hello
+module myapp3.cfg
+
+
+entry myapp2
+kernel fiasco -serial_esc
+roottask moe rom/myapp2.cfg
+module l4re
+module moe
+module ned
+module hello
+module myapp2.cfg
+module myapp2
+
+entry myapp.cfg
+roottask moe rom/myapp.cfg
+module l4re
+module ned
+module myapp
+module hello
+module ned-prompt
+module myapp.cfg
+
+entry myapp
+roottask moe --init=rom/myapp
+module l4re
+module myapp
+
+entry hello
+roottask moe --init=rom/hello
+module l4re
+module hello
+
+entry hello-cfg
+kernel fiasco -serial_esc
+roottask moe rom/hello.cfg
+module l4re
+module ned
+module hello.cfg
+module hello
+
+entry hello-2
+kernel fiasco -serial_esc
+roottask moe rom/hello-2.cfg
+module l4re
+module ned
+module hello-2.cfg
+module hello
+
+entry hello-shared
+roottask moe --init=rom/ex_hello_shared
+module l4re
+module ex_hello_shared
+
+entry[arch=x86|amd64] framebuffer-example
+roottask moe rom/x86-fb.cfg
+module x86-fb.cfg
+module l4re
+module ned
+module io
+module io/x86-legacy.devs
+module x86-fb.io
+module fb-drv
+module mag
+module ex_fb_spectrum_cc
+
+entry[arch=x86|amd64|arm|arm64] L4Linux-basic
+roottask moe rom/l4lx.cfg
+module l4lx.cfg
+module l4re
+module ned
+module[arch=arm64] arch/l4/boot/dts/simple.dtb
+module[uncompress] vmlinuz 
+module[fname=ramdisk] https://l4re.org/download/ramdisks/ramdisk-amd64.rd
+
+entry[arch=x86|amd64] L4Linux-mag
+moe l4lx-gfx.cfg
+module l4re
+module ned
+module io
+module fb-drv
+module mag
+module io/x86-legacy.devs
+module l4lx-x86.io
+module[uncompress] vmlinuz
+module[fname=ramdisk] https://l4re.org/download/ramdisks/ramdisk-amd64.rd
+
+
+entry[arch=arm|arm64|amd64|riscv] VM-minimal
+moe vm-minimal.cfg
+module l4re
+module ned
+module uvmm
+module[arch=arm64,fname=virt.dtb]                 dtb/virt-arm_virt-64.dtb
+
+module[arch=arm64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/arm64/Image-6.6.8
+module[arch=arm64,fname=ramdisk.cpio]             /home/iss/L4Re_c/D_ramdisk-armv8-64.cpio
+
+
+
+entry[arch=arm64] bootstrap_VM-ubuntu-zcu104
+module l4re
+module ned
+module uvmm
+module uvmm_dtg
+module[arch=arm64,fname=virt.dtb]                 dtb/virt-arm_virt-64.dtb
+module                                  /home/iss/L4Re_c/build_L4Re_xilinx104/assets/ned/uvmm/vmm.lua
+# rom/linux
+module[arch=arm64,fname=linux,nostrip]  /home/iss/L4Re_c/linux/arch/arm64/boot/Image
+module[arch=arm64,fname=vm-ubuntu-zcu104_dtg.lua]   /home/iss/L4Re_c/l4/conf/examples/vm-ubuntu-zcu104_dtg.lua
+# rom/ramdisk.cpio.gz
+module[arch=arm64,fname=ramdisk.cpio.gz]  /home/iss/L4Re_c/ubuntu-rootfs.cpio.gz
+moe vm-ubuntu-zcu104_dtg.lua
+
+entry[arch=arm64] ms_test
+kernel fiasco -serial_esc
+roottask moe rom/MS_Test.cfg -h
+module l4re
+module ned
+module uvmm
+module cons
+module io
+module l4vio_switch
+module l4vio_net_p2p
+module ned/uvmm/vmm.lua
+# module[fname=vmm] ned/uvmm/vmm.lua
+module emmc-drv  
+module[arch=arm64,fname=virt.dtb]       dtb/virt-arm_virt-64.dtb
+# module[arch=arm64,fname=virt.dtb]           /home/iss/PetaLinux/xilinx_zcu_project/images/linux/system.dtb
+# module[arch=arm64,fname=linux,nostrip]  https://l4re.org/download/Linux-kernel/arm64/Image-5.16.1
+module[arch=arm64,fname=linux,nostrip]  /home/iss/L4Re_c/Ubuntu_Image
+module[arch=arm64,fname=ramdisk.cpio.gz,initrd]  https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module MS_Test.cfg
+module devicescan
+module ahci-drv
+module L4virtio
+module zynqmp2.io
+
+
+
+entry[arch=arm64] VM-ubuntu-zcu104
+kernel fiasco -serial_esc
+roottask moe rom/vm-ubuntu-zcu104.cfg -h
+module l4re
+module ned
+module uvmm
+module io
+module emmc-drv  
+module[arch=arm64,fname=virt.dtb]       dtb/virt-arm_virt-64.dtb
+# Use your custom-built kernel
+# module[arch=arm64,fname=linux,nostrip]  https://l4re.org/download/Linux-kernel/arm64/Image-5.16.1
+module[arch=arm64,fname=linux,nostrip]  /home/iss/L4Re_c/Ubuntu_Image
+# Use your Ubuntu rootfs
+# module[arch=arm64,fname=ramdisk.cpio.gz,initrd]       /home/iss/L4Re_c/ubuntu-rootfs-try15.cpio.gz
+module[arch=arm64,fname=ramdisk.cpio.gz,initrd]  https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+# module[arch=arm64,fname=ramdisk.cpio.gz,initrd]         https://l4re.org/download/ramdisks/ramdisk-armv8-64.rd
+module vm-ubuntu-zcu104.cfg
+module zynqmp2.io
+
+entry uvmm-basic
+kernel fiasco -serial_esc
+roottask moe rom/uvmm-basic.ned
+module uvmm
+module l4re
+module ned
+module Image2.gz 
+module ramdisk-armv8-64.rd
+module dtb/virt-arm_virt-64.dtb
+module uvmm-basic.ned
+
+
+
+entry uvmm-io
+kernel fiasco -serial_esc
+roottask moe rom/uvmm-io.lua
+module l4re
+module ned
+module uvmm
+module cons
+module uvmm-io.lua
+module vmm.lua
+module[name=rom/zynqmp-zcu104-revA.dtb]     /home/iss/L4Re_c/zynqmp-zcu104-revA.dtb
+module[fname=ramdisk.cpio.gz]               https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module[fname=Image.gz,nostrip]              /home/iss/L4Re_c/linux/arch/arm64/boot/Image.gz
+module io
+module rtc.io
+module vm_hw.vbus
+
+
+entry vm-basic
+kernel fiasco -serial_esc
+moe vm-basic.cfg
+module uvmm
+module l4re
+module ned
+# module[name=rom/dtb.dtb]     /home/iss/L4Re_c/zynqmp-zcu104-revA.dtb
+module[arch=arm64,fname=dtb.dtb]                 dtb/virt-arm_virt-64.dtb
+# module[fname=Image,nostrip]                 https://l4re.org/download/Linux-kernel/arm64/Image-5.16.1
+module[fname=ramdisk.cpio.gz]               https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+# module vm-basic.cfg
+
+# module[fname=ramdisk.cpio.gz]             /home/iss/L4Re_c/ubuntu-rootfs.cpio.gz
+module[fname=Image,nostrip]              /home/iss/L4Re_c/linux/arch/arm64/boot/Image
+
+
+entry[arch=arm|arm64|amd64|riscv] VM-multi
+moe vm-multi.cfg
+module l4re
+module ned
+module cons
+module uvmm
+module[arch=arm,fname=virt.dtb]                   dtb/virt-arm_virt-32.dtb
+module[arch=arm64,fname=virt.dtb]                 dtb/virt-arm_virt-64.dtb
+module[arch=amd64,fname=virt.dtb]                 dtb/virt-pc.dtb
+module[arch=riscv,bits=32,fname=virt.dtb]         dtb/virt-riscv32.dtb
+module[arch=riscv,bits=64,fname=virt.dtb]         dtb/virt-riscv64.dtb
+module[arch=arm,fname=linux,nostrip]              https://l4re.org/download/Linux-kernel/arm32/zImage-6.6.8
+module[arch=arm64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/arm64/Image-6.6.8
+module[arch=amd64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/x86-64/bzImage-6.6.8
+module[arch=riscv,bits=64,fname=linux,nostrip]    https://l4re.org/download/Linux-kernel/riscv64/Image-6.11.4.gz
+module[arch=arm,fname=ramdisk.cpio.gz]            https://l4re.org/download/ramdisks/ramdisk-armv7.cpio.gz
+module[arch=arm64,fname=ramdisk.cpio.gz]          https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module[arch=amd64,fname=ramdisk.cpio.gz]          https://l4re.org/download/ramdisks/ramdisk-amd64.cpio.gz
+module[arch=riscv,bits=64,fname=ramdisk.cpio.gz]  https://l4re.org/download/ramdisks/ramdisk-riscv64.cpio.gz
+
+entry[arch=arm|arm64|amd64|riscv] VM-multi-p2p
+moe vm-multi-p2p.cfg
+module l4re
+module ned
+module cons
+module l4vio_net_p2p
+module uvmm
+module[arch=arm,fname=virt.dtb]                   dtb/virt-arm_virt-32.dtb
+module[arch=arm64,fname=virt.dtb]                 dtb/virt-arm_virt-64.dtb
+module[arch=amd64,fname=virt.dtb]                 dtb/virt-pc.dtb
+module[arch=riscv,bits=32,fname=virt.dtb]         dtb/virt-riscv32.dtb
+module[arch=riscv,bits=64,fname=virt.dtb]         dtb/virt-riscv64.dtb
+module[arch=arm,fname=linux,nostrip]              https://l4re.org/download/Linux-kernel/arm32/zImage-6.6.8
+module[arch=arm64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/arm64/Image-6.6.8
+module[arch=amd64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/x86-64/bzImage-6.6.8
+module[arch=riscv,bits=64,fname=linux,nostrip]    https://l4re.org/download/Linux-kernel/riscv64/Image-6.11.4.gz
+module[arch=arm,fname=ramdisk.cpio.gz]            https://l4re.org/download/ramdisks/ramdisk-armv7.cpio.gz
+module[arch=arm64,fname=ramdisk.cpio.gz]          https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module[arch=amd64,fname=ramdisk.cpio.gz]          https://l4re.org/download/ramdisks/ramdisk-amd64.cpio.gz
+module[arch=riscv,bits=64,fname=ramdisk.cpio.gz]  https://l4re.org/download/ramdisks/ramdisk-riscv64.cpio.gz
+
+entry[arch=arm|arm64|amd64] VM-basic-pci
+moe vm-basic-pci.cfg
+module l4re
+module ned
+module cons
+module io
+module[arch=arm|arm64,fname=pci.io] arm-virt64.io
+module[arch=amd64]                  pci.io
+module uvmm
+module[arch=arm,  fname=virt-pci.dtb]     dtb/virt-arm_virt-64_pci.dtb
+module[arch=arm64,fname=virt-pci.dtb]     dtb/virt-arm_virt-64_pci.dtb
+module[arch=amd64,fname=virt-pci.dtb]     dtb/virt-pc.dtb
+module[arch=arm,fname=linux,nostrip]      https://l4re.org/download/Linux-kernel/arm32/zImage-6.6.8
+module[arch=arm64,fname=linux,nostrip]    https://l4re.org/download/Linux-kernel/arm64/Image-6.6.8
+module[arch=amd64,fname=linux,nostrip]    https://l4re.org/download/Linux-kernel/x86-64/bzImage-6.6.8
+module[arch=arm,fname=ramdisk.cpio.gz]    https://l4re.org/download/ramdisks/ramdisk-armv7.cpio.gz
+module[arch=arm64,fname=ramdisk.cpio.gz]  https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module[arch=amd64,fname=ramdisk.cpio.gz]  https://l4re.org/download/ramdisks/ramdisk-amd64.cpio.gz
+
+entry ipcbench
+roottask moe rom/ipcbench.cfg
+module l4re
+module ned
+module ipcbench
+module ipcbench_client
+module ipcbench_server
+module ipcbench_parallel
+module syscallbench
+module syscallbench_parallel
+module ../pkg/ipcbench/conf/ipcbench.cfg

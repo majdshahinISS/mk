@@ -1,8 +1,10 @@
 /pkg/*
 !/pkg/Makefile
+!/pkg/myapp*
 /.repo
 /tool/gen_dopecode
 /.ham
 /conf/Makeconf.boot
 /tests/*
 !/tests/Makefile
+*.log
