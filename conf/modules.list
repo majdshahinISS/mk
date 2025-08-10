@@ -117,6 +117,23 @@ module l4lx-x86.io
 module[uncompress] vmlinuz
 module[perl] "ramdisk-$ENV{ARCH}.rd"
 
+
+entry[arch=arm64] VM-ubuntu-zcu104
+kernel fiasco -serial_esc
+roottask moe rom/vm-ubuntu-zcu104.cfg
+module l4re
+module ned
+module uvmm
+module[arch=arm64,fname=virt.dtb]       dtb/virt-arm_virt-64.dtb
+# Use your custom-built kernel
+module[arch=arm64,fname=linux,nostrip]  https://l4re.org/download/Linux-kernel/arm64/Image-5.16.1
+# it works with this image too /home/iss/L4Re_c/Ubuntu_Image
+# Image bisher ist fast egal
+
+module[arch=arm64,fname=ramdisk.cpio.gz,initrd]  https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module vm-ubuntu-zcu104.cfg
+
+
 entry[arch=arm|arm64|amd64|riscv] VM-basic
 moe vm-basic.cfg
 module l4re
@@ -128,11 +145,11 @@ module[arch=amd64,fname=virt.dtb]                 dtb/virt-pc.dtb
 module[arch=riscv,bits=32,fname=virt.dtb]         dtb/virt-riscv32.dtb
 module[arch=riscv,bits=64,fname=virt.dtb]         dtb/virt-riscv64.dtb
 module[arch=arm,fname=linux,nostrip]              https://l4re.org/download/Linux-kernel/arm32/zImage-6.6.8
-module[arch=arm64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/arm64/Image-6.6.8
+module[arch=arm64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/arm64/Image-5.16.1
 module[arch=amd64,fname=linux,nostrip]            https://l4re.org/download/Linux-kernel/x86-64/bzImage-6.6.8
 module[arch=riscv,bits=64,fname=linux,nostrip]    https://l4re.org/download/Linux-kernel/riscv64/Image-6.11.4.gz
 module[arch=arm,fname=ramdisk.cpio.gz]            https://l4re.org/download/ramdisks/ramdisk-armv7.cpio.gz
-module[arch=arm64,fname=ramdisk.cpio.gz]          https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
+module[arch=arm64,fname=ramdisk.cpio.gz,initrd]          https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
 module[arch=amd64,fname=ramdisk.cpio.gz]          https://l4re.org/download/ramdisks/ramdisk-amd64.cpio.gz
 module[arch=riscv,bits=64,fname=ramdisk.cpio.gz]  https://l4re.org/download/ramdisks/ramdisk-riscv64.cpio.gz
 
