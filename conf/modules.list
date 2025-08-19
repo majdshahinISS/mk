@@ -118,20 +118,6 @@ module[uncompress] vmlinuz
 module[perl] "ramdisk-$ENV{ARCH}.rd"
 
 
-entry[arch=arm64] VM-ubuntu-zcu104
-kernel fiasco -serial_esc
-roottask moe rom/vm-ubuntu-zcu104.cfg
-module l4re
-module ned
-module uvmm
-module[arch=arm64,fname=virt.dtb]       dtb/virt-arm_virt-64.dtb
-# Use your custom-built kernel
-module[arch=arm64,fname=linux,nostrip]  https://l4re.org/download/Linux-kernel/arm64/Image-5.16.1
-# it works with this image too /home/iss/L4Re_c/Ubuntu_Image
-# Image bisher ist fast egal
-
-module[arch=arm64,fname=ramdisk.cpio.gz,initrd]  https://l4re.org/download/ramdisks/ramdisk-armv8-64.cpio.gz
-module vm-ubuntu-zcu104.cfg
 
 
 entry[arch=arm|arm64|amd64|riscv] VM-basic
@@ -224,3 +210,5 @@ module ipcbench_parallel
 module syscallbench
 module syscallbench_parallel
 module ned/ipcbench/ipcbench.cfg
+
+include /home/iss/L4Re_d/MS_L4Re/modules.list
