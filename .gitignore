@@ -9,3 +9,4 @@
 /tests/*
 !/tests/Makefile
 *.log
+!/pkg/Dummy_*
