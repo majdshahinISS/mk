@@ -20,7 +20,7 @@
 int
 main()
 {
-  L4::Cap<Calc> server = L4Re::Env::env()->get_cap<Calc>("calc_server");
+  L4::Cap<Calc> server = L4Re::Env::env()->get_cap<Calc>("crypto_ipc");
   if (!server.is_valid())
     {
       printf("Could not get server capability!\n");

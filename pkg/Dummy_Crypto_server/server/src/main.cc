@@ -44,9 +44,9 @@ main()
   static Calculation_server calc;
  
   // Register calculation server
-  if (!server.registry()->register_obj(&calc, "calc_server").is_valid())
+  if (!server.registry()->register_obj(&calc, "crypto_ipc").is_valid())
     {
-      printf("Could not register my service, is there a 'calc_server' in the caps table?\n");
+      printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
       return 1;
     }
  
