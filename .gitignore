@@ -10,3 +10,4 @@
 !/tests/Makefile
 *.log
 !/pkg/Dummy_*
+!/pkg/user_shared
