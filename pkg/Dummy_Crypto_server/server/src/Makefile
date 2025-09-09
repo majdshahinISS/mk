@@ -6,7 +6,7 @@ SRC_CC  := main.cc
 
 # INCLUDES += -I$(L4DIR)/pkg/user_shared/
 
-REQUIRES_LIBS         = libio-io libstdc++ cxx_libc_io cxx_io
+REQUIRES_LIBS         = libio-io libstdc++ cxx_libc_io cxx_io l4re l4re-util
 # this inclusde in the over path of pkg directories where no code
 #include $(L4DIR)/mk/subdir.mk 
 
