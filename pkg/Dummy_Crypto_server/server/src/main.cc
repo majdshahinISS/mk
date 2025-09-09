@@ -10,7 +10,6 @@
 #include <l4/re/env>
 #include <l4/sys/err.h>
 #include <l4/sys/types.h>
-#include <l4/re/util/cap_alloc>
 
 #include <l4/re/util/object_registry>
 #include <l4/re/util/br_manager>
@@ -59,6 +58,20 @@ static int create_dataspace(L4::Cap<L4Re::Dataspace> &ds ,const l4_size_t size) 
               static_cast<unsigned long>(ds->size()));
   return 0;
 }
+// get dataspace from .cfg file
+static int get_dataspace(L4::Cap<L4Re::Dataspace> &ds ,l4_size_t &size, const char *name) {
+  // Get the shared dataspace capability named "shm" from the .cfg
+  ds = L4Re::Env::env()->get_cap<L4Re::Dataspace>(name);
+  if (!ds.is_valid()) {
+    std::printf("Server: \'%s\' cap missing\n", name);
+    return -1;
+  };
+  size = ds->size();
+
+  std::printf("Dataspace created successfully, size=%lu bytes\n",
+              static_cast<unsigned long>(ds->size()));
+  return 0;
+}
 
 
 static int attach_ds(L4::Cap<L4Re::Dataspace> ds, void **out_ptr, l4_size_t *out_size)
@@ -93,10 +106,15 @@ static int attach_ds(L4::Cap<L4Re::Dataspace> ds, void **out_ptr, l4_size_t *out
 int
 main()
 {
-
-  constexpr l4_size_t Size = 4096; // one page, adjust as needed
   L4::Cap<L4Re::Dataspace> ds;
-  int res = create_dataspace(ds, Size);
+  int res = 0;
+  
+  
+  // constexpr l4_size_t Size = 4096; // one page, adjust as needed
+  // res = create_dataspace(ds, Size);
+
+  l4_size_t Size = 0;
+  res = get_dataspace(ds, Size, "shm");
   if (res < 0) {
     std::printf("Failed to create dataspace\n");
     return 1;
@@ -131,26 +149,34 @@ main()
 }
 
 /*
-dataspace create and attatch at runtime 
-.cfg
+dataspace get from .cfg
 
-local L4 = require("L4");
-local l = L4.default_loader;
+local L4 = require("L4")
+local ld = L4.default_loader
 
--- Create IPC gate for communication
-local crypto_ipc = l:new_channel();
+-- Create a shared dataspace 
+local shm = L4.Env.user_factory:create(
+      L4.Proto.Dataspace,
+      6 * 1024,                   -- size in MB
+      L4.Mem_alloc_flags.Continuous |
+        L4.Mem_alloc_flags.Pinned |
+        L4.Mem_alloc_flags.Super_pages,
+      21                                   -- alignment
+    ):m("rw");
 
--- Start server application
-l:start({
-    log = {"C_Server", "red"},
-    caps = {    }
-}, "rom/Dummy_Crypto_server");
 
--- Start client application
-l:start({
-    log = {"C_Client", "green"},
-    caps = {    }
-}, "rom/Dummy_Crypto_client");
+local crypto_ipc = ld:new_channel()
+
+-- Server gets: shm + server end of channel
+ld:start(
+  { caps = { shm = shm, crypto_ipc = crypto_ipc:svr() }, log = { "Crypto_server", "yellow" } },
+  "rom/Dummy_Crypto_server"
+)
+
+ld:start(
+  { caps = { shm = shm, crypto_ipc = crypto_ipc }, log = { "Crypto_client", "green" } },
+  "rom/Dummy_Crypto_client"
+)
 
 
 */
