@@ -11,7 +11,6 @@
 #include <l4/sys/err.h>
 #include <l4/sys/types.h>
 
-#include <l4/re/util/object_registry>
 #include <l4/re/util/br_manager>
 #include <l4/sys/cxx/ipc_epiface>
 
@@ -21,22 +20,34 @@
 #include <l4/re/dataspace>      // For Dataspace interface
 #include <l4/re/mem_alloc>      // For the memory allocator
 
+#include <l4/re/util/object_registry>
+#include <l4/sys/cxx/ipc_server>
 static L4Re::Util::Registry_server<> server;
  
-class Calculation_server : public L4::Epiface_t<Calculation_server, Calc>
+class Crypto_server : public L4::Epiface_t<Crypto_server, ICrypto>
 {
 public:
-  int op_sub(Calc::Rights, l4_uint32_t a, l4_uint32_t b, l4_uint32_t &res)
+  Crypto_server( L4::Cap<L4Re::Dataspace> ds)
   {
-    res = a - b;
+    m_ds = ds;
+  }
+  int op_dummy(ICrypto::Rights, int &x)
+  {
+    std::printf("Server: dummy called\n");
+    x = _x;
     return 0;
   }
- 
-  int op_neg(Calc::Rights, l4_uint32_t a, l4_uint32_t &res)
+
+  int op_getDS(ICrypto::Rights, L4::Cap<L4Re::Dataspace> &ds)
   {
-    res = -a;
+    std::printf("Server: getDS called\n");
+    
+    ds = m_ds;
     return 0;
   }
+  private:
+    int _x = 3;
+    L4::Cap<L4Re::Dataspace>  m_ds;
 };
 
 static int create_dataspace(L4::Cap<L4Re::Dataspace> &ds ,const l4_size_t size) {
@@ -110,41 +121,34 @@ main()
   int res = 0;
   
   
-  // constexpr l4_size_t Size = 4096; // one page, adjust as needed
-  // res = create_dataspace(ds, Size);
+  constexpr l4_size_t Size = 1024*5; 
+  res = create_dataspace(ds, Size);
 
-  l4_size_t Size = 0;
-  res = get_dataspace(ds, Size, "shm");
+  // l4_size_t Size = 0;
+  // res = get_dataspace(ds, Size, "shm");
   if (res < 0) {
     std::printf("Failed to create dataspace\n");
     return 1;
   }
-  void *ptr;
+  /* *ptr;
   l4_size_t size;
   res = attach_ds(ds, &ptr, &size);
   if (res < 0) {
     std::printf("Failed to attach dataspace\n");
     return 1;
-  }
-  return res;
+  }*/
 
-/*
-
-  static Calculation_server calc;
- 
+  static Crypto_server crypto(ds);
   // Register calculation server
-  if (!server.registry()->register_obj(&calc, "crypto_ipc").is_valid())
+  if (!server.registry()->register_obj(&crypto, "crypto_ipc").is_valid())
     {
       printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
       return 1;
     }
- 
-  printf("Welcome to the calculation server!\n"
-         "I can do subtractions and negations.\n");
- 
+  printf("Welcome to the Crypto server!\n"
+         "I can provide a shared dataspace.\n");
   // Wait for client requests
   server.loop();
- */
   return 0;
 }
 

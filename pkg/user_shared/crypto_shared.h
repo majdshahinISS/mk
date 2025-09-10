@@ -3,12 +3,13 @@
 
 #include <l4/sys/capability>
 #include <l4/sys/cxx/ipc_iface>
- 
-struct Calc : L4::Kobject_t<Calc, L4::Kobject, 0x45>
+#include <l4/re/dataspace> 
+#include <l4/re/util/cap_alloc>
+struct ICrypto : L4::Kobject_t<ICrypto, L4::Kobject, 0x45>
 {
-  L4_INLINE_RPC(int, sub, (l4_uint32_t a, l4_uint32_t b, l4_uint32_t *res));
-  L4_INLINE_RPC(int, neg, (l4_uint32_t a, l4_uint32_t *res));
-  typedef L4::Typeid::Rpcs<sub_t, neg_t> Rpcs;
+  L4_INLINE_RPC(int, dummy, (int &x));
+  L4_INLINE_RPC(int, getDS, (L4::Cap<L4Re::Dataspace> &ds));
+  typedef L4::Typeid::Rpcs<dummy_t, getDS_t> Rpcs;
 };
 
 #endif // __CRYPTO_SHARED_
