@@ -20,6 +20,7 @@
 int
 main()
 {
+  sleep(1);
   L4::Cap<ICrypto> crypto =L4Re::Env::env()->get_cap<ICrypto>("crypto_ipc");
   if (!crypto.is_valid()) {
     std::printf("Failed to get crypto capability\n");
@@ -29,6 +30,20 @@ main()
   crypto->dummy(x );
   std::printf("dummy returned x = %d\n", x); // ok it prints 3
 
+  L4::Cap<L4Re::Dataspace> ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+  L4::Ipc::Cap<L4Re::Dataspace> ds_ipc(ds);
+  int r = crypto->getDS(ds_ipc); // ds_ipc
+  if (r != L4_EOK) {
+    std::printf("getDS failed: error : 0x%x\n", r);
+    return 1;
+  }
+  else 
+  {
+    std::printf("getDS succeeded, dataspace size=%lu bytes\n",
+                static_cast<unsigned long>(ds->size())); // ok but it prints 0
+  } 
+
+  /*
   L4::Cap<L4Re::Dataspace> ds;
   int res = crypto->getDS(ds);
   if (res < 0) {
@@ -57,7 +72,7 @@ main()
     std::printf("Invalid dataspace capability received\n");
     return 1;
   }
-
+*/
  
   return 0;
 }

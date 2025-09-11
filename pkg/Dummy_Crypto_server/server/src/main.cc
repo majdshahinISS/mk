@@ -27,9 +27,43 @@ static L4Re::Util::Registry_server<> server;
 class Crypto_server : public L4::Epiface_t<Crypto_server, ICrypto>
 {
 public:
-  Crypto_server( L4::Cap<L4Re::Dataspace> ds)
+  L4::Cap<L4Re::Dataspace>  ds;
+  bool is_ready() const { return ready; }
+  Crypto_server(const l4_size_t size , const bool attach)
   {
-    m_ds = ds;
+    ds = L4::Cap<L4Re::Dataspace>();
+    ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+    if (!ds.is_valid()) {
+      std::printf("Capability allocation failed\n");
+      ready = false;
+    }
+
+    // Create the dataspace using the memory allocator
+    long err = L4Re::Env::env()->mem_alloc()->alloc(size, ds, 0);
+    if (err < 0) {
+      std::printf("Memory allocation failed: %ld\n", err);
+      ready = false;
+    }
+
+    std::printf("Dataspace created successfully, size=%lu bytes\n",
+                static_cast<unsigned long>(ds->size()));
+
+    if (attach) {
+      void *addr = nullptr;
+      err = L4Re::Env::env()->rm()->attach(
+          &addr, size,
+          L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+          L4::Ipc::make_cap_rw(ds));                    // grant RW rights
+      if (err < 0) {
+        std::printf("attach_ds: attach failed (%ld)\n", err);
+        ready = false;
+      }
+      else {
+        std::printf("attach_ds: attached at %p, size=%lu\n",
+                    addr, static_cast<unsigned long>(size));
+      } 
+    }  
+    ready = true;  
   }
   int op_dummy(ICrypto::Rights, int &x)
   {
@@ -38,18 +72,93 @@ public:
     return 0;
   }
 
-  int op_getDS(ICrypto::Rights, L4::Cap<L4Re::Dataspace> &ds)
+  int op_getDS(ICrypto::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
   {
     std::printf("Server: getDS called\n");
     
-    ds = m_ds;
-    return 0;
+    out_ds =  L4::Ipc::make_cap_rw(ds);
+    return L4_EOK;
   }
   private:
     int _x = 3;
-    L4::Cap<L4Re::Dataspace>  m_ds;
+    bool ready = false;
 };
 
+
+
+int
+main()
+{
+  L4::Cap<L4Re::Dataspace> ds;
+  int res = 0;
+  
+  
+  constexpr l4_size_t Size = 1024*5; 
+
+
+  // l4_size_t Size = 0;
+  // res = get_dataspace(ds, Size, "shm");
+  if (res < 0) {
+    std::printf("Failed to create dataspace\n");
+    return 1;
+  }
+
+
+  static Crypto_server crypto = Crypto_server(Size, false);
+  if (!crypto.is_ready()) {
+    std::printf("Crypto server initialization failed\n");
+    return 1;
+  }
+  else {
+    std::printf("Crypto server initialized successfully\n");
+  }
+  // Register calculation server
+  if (!server.registry()->register_obj(&crypto, "crypto_ipc").is_valid())
+    {
+      printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
+      return 1;
+    }
+  printf("Welcome to the Crypto server!\n"
+         "I can provide a shared dataspace.\n");
+  // Wait for client requests
+  server.loop();
+  return 0;
+}
+
+/*
+dataspace get from .cfg
+
+local L4 = require("L4")
+local ld = L4.default_loader
+
+-- Create a shared dataspace 
+local shm = L4.Env.user_factory:create(
+      L4.Proto.Dataspace,
+      6 * 1024,                   -- size in MB
+      L4.Mem_alloc_flags.Continuous |
+        L4.Mem_alloc_flags.Pinned |
+        L4.Mem_alloc_flags.Super_pages,
+      21                                   -- alignment
+    ):m("rw");
+
+
+local crypto_ipc = ld:new_channel()
+
+-- Server gets: shm + server end of channel
+ld:start(
+  { caps = { shm = shm, crypto_ipc = crypto_ipc:svr() }, log = { "Crypto_server", "yellow" } },
+  "rom/Dummy_Crypto_server"
+)
+
+ld:start(
+  { caps = { shm = shm, crypto_ipc = crypto_ipc }, log = { "Crypto_client", "green" } },
+  "rom/Dummy_Crypto_client"
+)
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
 static int create_dataspace(L4::Cap<L4Re::Dataspace> &ds ,const l4_size_t size) {
   // Allocate a capability slot for the dataspace
   ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
@@ -112,75 +221,6 @@ static int attach_ds(L4::Cap<L4Re::Dataspace> ds, void **out_ptr, l4_size_t *out
               addr, static_cast<unsigned long>(size));
   return 0;
 }
-
-
-int
-main()
-{
-  L4::Cap<L4Re::Dataspace> ds;
-  int res = 0;
-  
-  
-  constexpr l4_size_t Size = 1024*5; 
-  res = create_dataspace(ds, Size);
-
-  // l4_size_t Size = 0;
-  // res = get_dataspace(ds, Size, "shm");
-  if (res < 0) {
-    std::printf("Failed to create dataspace\n");
-    return 1;
-  }
-  /* *ptr;
-  l4_size_t size;
-  res = attach_ds(ds, &ptr, &size);
-  if (res < 0) {
-    std::printf("Failed to attach dataspace\n");
-    return 1;
-  }*/
-
-  static Crypto_server crypto(ds);
-  // Register calculation server
-  if (!server.registry()->register_obj(&crypto, "crypto_ipc").is_valid())
-    {
-      printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
-      return 1;
-    }
-  printf("Welcome to the Crypto server!\n"
-         "I can provide a shared dataspace.\n");
-  // Wait for client requests
-  server.loop();
-  return 0;
-}
-
-/*
-dataspace get from .cfg
-
-local L4 = require("L4")
-local ld = L4.default_loader
-
--- Create a shared dataspace 
-local shm = L4.Env.user_factory:create(
-      L4.Proto.Dataspace,
-      6 * 1024,                   -- size in MB
-      L4.Mem_alloc_flags.Continuous |
-        L4.Mem_alloc_flags.Pinned |
-        L4.Mem_alloc_flags.Super_pages,
-      21                                   -- alignment
-    ):m("rw");
-
-
-local crypto_ipc = ld:new_channel()
-
--- Server gets: shm + server end of channel
-ld:start(
-  { caps = { shm = shm, crypto_ipc = crypto_ipc:svr() }, log = { "Crypto_server", "yellow" } },
-  "rom/Dummy_Crypto_server"
-)
-
-ld:start(
-  { caps = { shm = shm, crypto_ipc = crypto_ipc }, log = { "Crypto_client", "green" } },
-  "rom/Dummy_Crypto_client"
-)
 
 
 */
