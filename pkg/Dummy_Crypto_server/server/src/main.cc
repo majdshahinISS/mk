@@ -74,11 +74,10 @@ public:
 
   int op_getDS(ICrypto::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
   {
-    std::printf("Server: getDS called\n");
-    
-    out_ds =  L4::Ipc::make_cap_rw(ds);
+    out_ds = L4::Ipc::make_cap_rw(ds);
     return L4_EOK;
   }
+
   private:
     int _x = 3;
     bool ready = false;

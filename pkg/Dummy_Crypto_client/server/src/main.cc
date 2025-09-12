@@ -31,8 +31,7 @@ main()
   std::printf("dummy returned x = %d\n", x); // ok it prints 3
 
   L4::Cap<L4Re::Dataspace> ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
-  L4::Ipc::Cap<L4Re::Dataspace> ds_ipc(ds);
-  int r = crypto->getDS(ds_ipc); // ds_ipc
+  int r = crypto->getDS(ds); 
   if (r != L4_EOK) {
     std::printf("getDS failed: error : 0x%x\n", r);
     return 1;
@@ -42,37 +41,6 @@ main()
     std::printf("getDS succeeded, dataspace size=%lu bytes\n",
                 static_cast<unsigned long>(ds->size())); // ok but it prints 0
   } 
-
-  /*
-  L4::Cap<L4Re::Dataspace> ds;
-  int res = crypto->getDS(ds);
-  if (res < 0) {
-    std::printf("getDS failed\n");
-    return 1;
-  }
-  else 
-  {
-    std::printf("getDS succeeded, dataspace size=%lu bytes\n",
-                static_cast<unsigned long>(ds->size())); // ok but it prints 0
-  }
-
-  void *buf = nullptr; l4_size_t sz = ds->size();
-  if (L4Re::Env::env()->rm()->attach(&buf, sz,
-        L4Re::Rm::F::Search_addr|L4Re::Rm::F::RW,
-        L4::Ipc::make_cap_rw(ds)) < 0) {
-    std::printf("Failed to attach dataspace\n");// Error 
-    return 1;
-  }
-  std::printf("Dataspace attached at %p, size=%lu bytes\n", buf,
-              static_cast<unsigned long>(sz));
-
-  std::printf("getDS succeeded, dataspace size=%lu bytes\n",
-              static_cast<unsigned long>(ds->size()));
-  if (!ds.is_valid()) {
-    std::printf("Invalid dataspace capability received\n");
-    return 1;
-  }
-*/
- 
+  
   return 0;
 }

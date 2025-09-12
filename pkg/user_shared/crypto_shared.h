@@ -8,7 +8,7 @@
 struct ICrypto : L4::Kobject_t<ICrypto, L4::Kobject, 0x45>
 {
   L4_INLINE_RPC(int, dummy, (int &x));
-  L4_INLINE_RPC(int, getDS, (L4::Ipc::Cap<L4Re::Dataspace> &out_ds));
+  L4_INLINE_RPC(int, getDS, (L4::Ipc::Out<L4::Cap<L4Re::Dataspace>> out_ds));
   typedef L4::Typeid::Rpcs<dummy_t, getDS_t> Rpcs;
 };
 
