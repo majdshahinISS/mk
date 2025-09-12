@@ -61,7 +61,7 @@ main()
     std::strcpy(static_cast<char*>(addr), buffer);
     crypto->CTS_ready(size); // notify server that client to server is ready
     sleep(1);
-    if (i == 2) break;
+    if (i == 5) break;
   }
   return 0;
 }

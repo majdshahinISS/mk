@@ -29,40 +29,69 @@ class Crypto_server : public L4::Epiface_t<Crypto_server, ICrypto>
 public:
 
   bool is_ready() const { return ready; }
-  Crypto_server(const l4_size_t size)
+  Crypto_server(const l4_size_t size_CTS, const l4_size_t size_STC)
   {
     ds_CTS = L4::Cap<L4Re::Dataspace>();
     ds_CTS = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
     if (!ds_CTS.is_valid()) {
       std::printf("Capability allocation failed\n");
-      ready = false;
+      ready = false; return;
+    }
+
+
+    ds_STC = L4::Cap<L4Re::Dataspace>();
+    ds_STC = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+    if (!ds_STC.is_valid()) {
+      std::printf("Capability allocation failed\n");
+      ready = false; return;
     }
 
     // Create the dataspace using the memory allocator
-    long err = L4Re::Env::env()->mem_alloc()->alloc(size, ds_CTS, 0);
+    long err = L4Re::Env::env()->mem_alloc()->alloc(size_CTS, ds_CTS, 0);
     if (err < 0) {
       std::printf("Memory allocation failed: %ld\n", err);
-      ready = false;
+      ready = false; return;
+    }
+    err = L4Re::Env::env()->mem_alloc()->alloc(size_STC, ds_STC, 0);
+    if (err < 0) {
+      std::printf("Memory allocation failed: %ld\n", err);
+      ready = false; return;
     }
 
-    std::printf("Dataspace created successfully, size=%lu bytes\n",
-                static_cast<unsigned long>(ds_CTS->size()));
+    std::printf("Dataspace created successfully, size_CTS=%lu bytes, size_STC=%lu bytes\n",
+                static_cast<unsigned long>(ds_CTS->size()),
+                static_cast<unsigned long>(ds_STC->size()));
 
-   
-      void *addr = nullptr;
-      err = L4Re::Env::env()->rm()->attach(
-          &addr, size,
-          L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
-          L4::Ipc::make_cap_rw(ds_CTS));                    // grant RW rights
-      if (err < 0) {
-        std::printf("attach_ds: attach failed (%ld)\n", err);
-        ready = false;
-      }
-      else {
-        std::printf("attach_ds: attached at %p, size=%lu\n",
-                    addr, static_cast<unsigned long>(size));
-        p_CTS = addr;
-      } 
+    // attach the dataspaces
+    void *addr = nullptr;
+    err = L4Re::Env::env()->rm()->attach(
+        &addr, size_CTS,
+        L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+        L4::Ipc::make_cap_rw(ds_CTS));                    // grant RW rights
+    if (err < 0) {
+      std::printf("attach_ds_CTS: attach failed (%ld)\n", err);
+      ready = false; return;
+    }
+    else {
+      std::printf("attach_ds_CTS: attached at %p, size=%lu\n",
+                  addr, static_cast<unsigned long>(size_CTS));
+      p_CTS = addr;
+    }
+
+    addr = nullptr;
+    err = L4Re::Env::env()->rm()->attach(
+        &addr, size_STC,
+        L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+        L4::Ipc::make_cap_rw(ds_STC));                    // grant RW rights
+    if (err < 0) {
+      std::printf("attach_ds_STC: attach failed (%ld)\n", err);
+      ready = false; return;
+    }
+    else {
+      std::printf("attach_ds_STC: attached at %p, size=%lu\n",
+                  addr, static_cast<unsigned long>(size_STC));
+      p_STC = addr;
+    }
   
     ready = true;  
   }
@@ -113,19 +142,15 @@ main()
   L4::Cap<L4Re::Dataspace> ds;
   int res = 0;
   
-  
-  constexpr l4_size_t Size = 1024*5; 
+  constexpr l4_size_t Size = 1024*3; 
 
-
-  // l4_size_t Size = 0;
-  // res = get_dataspace(ds, Size, "shm");
   if (res < 0) {
     std::printf("Failed to create dataspace\n");
     return 1;
   }
 
 
-  static Crypto_server crypto = Crypto_server(Size);
+  static Crypto_server crypto = Crypto_server(Size, Size);
   if (!crypto.is_ready()) {
     std::printf("Crypto server initialization failed\n");
     return 1;
