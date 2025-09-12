@@ -66,8 +66,8 @@ public:
     void *addr = nullptr;
     err = L4Re::Env::env()->rm()->attach(
         &addr, size_CTS,
-        L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
-        L4::Ipc::make_cap_rw(ds_CTS));                    // grant RW rights
+        L4Re::Rm::F::Search_addr | L4Re::Rm::F::R,   // the server is allowed to read only
+        L4::Ipc::make_cap(ds_CTS, L4_CAP_FPAGE_R));  // the server is allowed to read only
     if (err < 0) {
       std::printf("attach_ds_CTS: attach failed (%ld)\n", err);
       ready = false; return;
@@ -102,18 +102,22 @@ public:
     return 0;
   }
 
-  int op_getDS(ICrypto::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
+  int op_CTS_getDS(ICrypto::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
   {
-    out_ds = L4::Ipc::make_cap_rw(ds_CTS);
+    //out_ds = L4::Ipc::make_cap_rw(ds_CTS);
+    out_ds = L4::Ipc::make_cap(ds_CTS, L4_CAP_FPAGE_RW);
     return L4_EOK;
   }
 
-  int op_CTS_ready(ICrypto::Rights, l4_size_t size)
+  int op_CTS_ready(ICrypto::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
   {
-    std::printf("Client to server is ready, dataspace size=%lu bytes\n",
-                static_cast<unsigned long>(size));
+    std::printf("Server: CTS_ready called id=%lu, type=%u, write_index=%lu, size=%lu\n",
+                static_cast<unsigned long>(id),
+                static_cast<unsigned int>(type),
+                static_cast<unsigned long>(write_index),
+                static_cast<unsigned long>(size));    
     if (p_CTS != nullptr) {
-      std::printf("Server read from CTS: %s\n", static_cast<char*>(p_CTS));
+      std::printf("Server read from CTS: %s\n", (static_cast<char*>(p_CTS) + write_index));
       return L4_EOK;
     }
     else {

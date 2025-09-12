@@ -17,6 +17,8 @@
 #include <l4/util/util.h>
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
 
+
+
 int
 main()
 {
@@ -31,7 +33,7 @@ main()
   std::printf("dummy returned x = %d\n", x); // ok it prints 3
 
   L4::Cap<L4Re::Dataspace> ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
-  int r = crypto->getDS(ds); 
+  int r = crypto->CTS_getDS(ds); 
   if (r != L4_EOK) {
     std::printf("getDS failed: error : 0x%x\n", r);
     return 1;
@@ -47,19 +49,30 @@ main()
   long err = L4Re::Env::env()->rm()->attach(
       &addr, size,
       L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
-      L4::Ipc::make_cap_rw(ds));                    // grant RW rights
+      L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW));                    // grant RW rights
   if (err < 0) {
     std::printf("attach_ds: attach failed (%ld)\n", err);
     return 1;
   }
   int i = 0;
+  l4_size_t write_index = 0;
   while (addr) {
     std::printf("Client: writing to dataspace at %p, size=%lu\n",
                 addr, static_cast<unsigned long>(size));
     char buffer[100];
     std::snprintf(buffer, sizeof(buffer), "Hello from Client %d", i++);
-    std::strcpy(static_cast<char*>(addr), buffer);
-    crypto->CTS_ready(size); // notify server that client to server is ready
+    l4_size_t str_len = std::strlen(buffer);
+
+    if( write_index + str_len +1 > size) {
+      std::printf("Client: no more space in dataspace\n");
+      break;
+    }
+
+    std::strcpy(static_cast<char*>(addr + write_index),  buffer);
+
+    crypto->CTS_ready(i,1,write_index, str_len); // notify server that client to server is ready
+    write_index += ((str_len+1 +3)/4)*4; // align to 4 bytes
+
     sleep(1);
     if (i == 5) break;
   }
