@@ -41,6 +41,27 @@ main()
     std::printf("getDS succeeded, dataspace size=%lu bytes\n",
                 static_cast<unsigned long>(ds->size())); // ok but it prints 0
   } 
-  
+  // attach the dataspace
+  void *addr = nullptr;
+  l4_size_t size = ds->size();
+  long err = L4Re::Env::env()->rm()->attach(
+      &addr, size,
+      L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+      L4::Ipc::make_cap_rw(ds));                    // grant RW rights
+  if (err < 0) {
+    std::printf("attach_ds: attach failed (%ld)\n", err);
+    return 1;
+  }
+  int i = 0;
+  while (addr) {
+    std::printf("Client: writing to dataspace at %p, size=%lu\n",
+                addr, static_cast<unsigned long>(size));
+    char buffer[100];
+    std::snprintf(buffer, sizeof(buffer), "Hello from Client %d", i++);
+    std::strcpy(static_cast<char*>(addr), buffer);
+    crypto->CTS_ready(size); // notify server that client to server is ready
+    sleep(1);
+    if (i == 2) break;
+  }
   return 0;
 }

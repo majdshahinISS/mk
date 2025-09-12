@@ -29,7 +29,7 @@ class Crypto_server : public L4::Epiface_t<Crypto_server, ICrypto>
 public:
   L4::Cap<L4Re::Dataspace>  ds;
   bool is_ready() const { return ready; }
-  Crypto_server(const l4_size_t size , const bool attach)
+  Crypto_server(const l4_size_t size)
   {
     ds = L4::Cap<L4Re::Dataspace>();
     ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
@@ -48,7 +48,7 @@ public:
     std::printf("Dataspace created successfully, size=%lu bytes\n",
                 static_cast<unsigned long>(ds->size()));
 
-    if (attach) {
+   
       void *addr = nullptr;
       err = L4Re::Env::env()->rm()->attach(
           &addr, size,
@@ -61,8 +61,9 @@ public:
       else {
         std::printf("attach_ds: attached at %p, size=%lu\n",
                     addr, static_cast<unsigned long>(size));
+        p_CTS = addr;
       } 
-    }  
+  
     ready = true;  
   }
   int op_dummy(ICrypto::Rights, int &x)
@@ -78,7 +79,23 @@ public:
     return L4_EOK;
   }
 
+  int op_CTS_ready(ICrypto::Rights, l4_size_t size)
+  {
+    std::printf("Client to server is ready, dataspace size=%lu bytes\n",
+                static_cast<unsigned long>(size));
+    if (p_CTS != nullptr) {
+      std::printf("Server read from CTS: %s\n", static_cast<char*>(p_CTS));
+      return L4_EOK;
+    }
+    else {
+      std::printf("Server: CTS pointer is null\n");
+      return 1;
+    }
+    return L4_EOK;
+  }
+
   private:
+    void * p_CTS = nullptr;
     int _x = 3;
     bool ready = false;
 };
@@ -103,7 +120,7 @@ main()
   }
 
 
-  static Crypto_server crypto = Crypto_server(Size, false);
+  static Crypto_server crypto = Crypto_server(Size);
   if (!crypto.is_ready()) {
     std::printf("Crypto server initialization failed\n");
     return 1;
