@@ -17,80 +17,32 @@
 #include <l4/util/util.h>
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
 
-struct Crypto_Request {
-  l4_size_t write_index;
-  l4_size_t size;
-  l4_uint8_t type; // 1: CTS, 2: STC
-  l4_uint64_t id;
-  l4_uint64_t req_timestamp;
-  l4_uint8_t tries;
-};
 
-class Client_{
-public:
-  Client_(const char * ipc_name)
-  {
-    crypto_ipc = L4Re::Env::env()->get_cap<ICrypto>(ipc_name);
-    if (!crypto_ipc.is_valid()) {
-      std::printf("Failed to get crypto_ipc capability\n");
-      ready = false; return ;
-    }
-    int x = 0;
-    crypto_ipc->dummy(x );
-    std::printf("dummy returned x = %d\n", x); // ok it prints 3
-
-    ds_CTS = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
-    size_CTS = 0;
-    ds_STC = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
-    size_STC = 0;
-
-    
-    p_CTS = nullptr;
-    p_STC = nullptr;
-    if (!attach_ds(ds_CTS, &p_CTS, &size_CTS)) {
-      std::printf("Client: attached CTS dataspace at %p, size=%lu bytes\n",
-                  p_CTS, static_cast<unsigned long>(size_CTS));
-    } else {
-      std::printf("Client: failed to attach CTS dataspace\n");
-      ready = false; return;
-    }
-    if (!attach_ds(ds_STC, &p_STC, &size_STC)) {
-      std::printf("Client: attached STC dataspace at %p, size=%lu bytes\n",
-                  p_STC, static_cast<unsigned long>(size_STC));
-    } else {
-      std::printf("Client: failed to attach STC dataspace\n");
-      ready = false; return;
-    }
-    if (!crypto_ipc.is_valid()) {
-      std::printf("Client: invalid crypto capability\n");
-      ready = false; return;
-    }
-    ready = true;
-  }
-  bool is_ready() const { return ready; }
-  private:
-    L4::Cap<ICrypto> crypto_ipc;
-    L4::Cap<L4Re::Dataspace> ds_CTS; // client to server
-    l4_size_t size_CTS;
-    void * p_CTS; // pointer to attached CTS dataspace
-    L4::Cap<L4Re::Dataspace> ds_STC; // server to client
-    l4_size_t size_STC;
-    void * p_STC; // pointer to attached STC dataspace
-    bool ready = false;
-};
 
 int
 main()
 {
   sleep(1);
-  Client_ client("crypto_ipc");
-  if (!client.is_ready()) {
-    std::printf("Client not ready\n");
+  L4::Cap<ICrypto> crypto =L4Re::Env::env()->get_cap<ICrypto>("crypto_ipc");
+  if (!crypto.is_valid()) {
+    std::printf("Failed to get crypto capability\n");
     return 1;
   }
+  int x = 0;
+  crypto->dummy(x );
+  std::printf("dummy returned x = %d\n", x); // ok it prints 3
 
-
-
+  L4::Cap<L4Re::Dataspace> ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+  int r = crypto->CTS_getDS(ds); 
+  if (r != L4_EOK) {
+    std::printf("getDS failed: error : 0x%x\n", r);
+    return 1;
+  }
+  else 
+  {
+    std::printf("getDS succeeded, dataspace size=%lu bytes\n",
+                static_cast<unsigned long>(ds->size())); // ok but it prints 0
+  } 
   // attach the dataspace
   void *addr = nullptr;
   l4_size_t size = ds->size();
