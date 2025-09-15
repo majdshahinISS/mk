@@ -143,16 +143,17 @@ public:
 int
 main()
 {
-  L4::Cap<L4Re::Dataspace> ds;
-  int res = 0;
-  
-  constexpr l4_size_t Size = 1024*3; 
+  const l4_size_t Size = 6 * 1024 ;
+  const char *ipc_name = "crypto_ipc"; // name must be 11 characters long maximum
+  DataspaceOwner ds_side = DataspaceOwner(&server, ipc_name); // name must be 11 characters long maximum
 
-  if (res < 0) {
-    std::printf("Failed to create dataspace\n");
+
+  /*if (!server.registry()->register_obj(&ds_side, "crypto_ipc").is_valid())
+  {
+    printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
     return 1;
-  }
-
+  }*/
+  /*
 
   static Crypto_server crypto = Crypto_server(Size, Size);
   if (!crypto.is_ready()) {
@@ -168,6 +169,7 @@ main()
       printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
       return 1;
     }
+      */
   printf("Welcome to the Crypto server!\n"
          "I can provide a shared dataspace.\n");
   // Wait for client requests
