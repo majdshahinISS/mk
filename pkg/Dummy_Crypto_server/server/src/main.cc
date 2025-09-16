@@ -15,7 +15,6 @@
 #include <l4/sys/cxx/ipc_epiface>
 
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
-#include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared2.h"
 
 
 #include <l4/re/util/cap_alloc> // For capability allocation
@@ -149,7 +148,14 @@ public:
 static void *server_loop_th(void *pserver_)
 {
   std::printf("serverloop server2\n");
-  server.loop();
+  // server.loop();
+    // get interface to the dataspace owner of the client side
+  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(CTS_ipc_name);
+  if (!dss.is_valid()) {
+    std::printf("Failed to get dss capability\n");
+    return 0;
+  }
+  dss->init(1024, 1000); // create a dataspace of 1024 bytes
   return 0;
 }
 int
@@ -160,19 +166,13 @@ main()
   if (pthread_create(&thread, NULL, server_loop_th, (&server)))
     return 1;
   //pthread_detach(thread);
-  sleep(1);
+  //sleep(1);
 
   // register dataspace owner of the server side
   DataspaceOwner ds_side = DataspaceOwner(&server, STC_ipc_name); // name must be 11 characters long maximum
 
   
-  // get interface to the dataspace owner of the client side
-  L4::Cap<IDataspaceOwner2> dss =L4Re::Env::env()->get_cap<IDataspaceOwner2>(CTS_ipc_name);
-  if (!dss.is_valid()) {
-    std::printf("Failed to get dss capability\n");
-    return 1;
-  }
-  dss->init(1024, 1000); // create a dataspace of 1024 bytes
+
 
   /*if (!server.registry()->register_obj(&ds_side, "crypto_ipc").is_valid())
   {

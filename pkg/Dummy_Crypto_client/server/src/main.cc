@@ -16,7 +16,6 @@
 
 #include <l4/util/util.h>
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
-#include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared2.h"
 
 static L4Re::Util::Registry_server<> server;
 const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
@@ -50,11 +49,11 @@ main()
     return 1;
   //pthread_detach(thread);
 
-  sleep(1);
+  //sleep(1);
 
   // register dataspace owner of the client side
 
-  DataspaceOwner2 ds_side = DataspaceOwner2(&server, CTS_ipc_name); // name must be 11 characters long maximum
+  DataspaceOwner ds_side = DataspaceOwner(&server, CTS_ipc_name); // name must be 11 characters long maximum
 
 
   /*
