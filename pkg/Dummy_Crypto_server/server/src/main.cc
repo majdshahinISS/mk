@@ -15,6 +15,8 @@
 #include <l4/sys/cxx/ipc_epiface>
 
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
+#include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared2.h"
+
 
 #include <l4/re/util/cap_alloc> // For capability allocation
 #include <l4/re/dataspace>      // For Dataspace interface
@@ -23,6 +25,8 @@
 #include <l4/re/util/object_registry>
 #include <l4/sys/cxx/ipc_server>
 static L4Re::Util::Registry_server<> server;
+  const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
+  const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
  
 class Crypto_server : public L4::Epiface_t<Crypto_server, ICrypto>
 {
@@ -138,23 +142,38 @@ public:
     bool ready = false;
 };
 
-
-
+//#include <l4/irq/irq.h>
+#include <l4/util/util.h>
+#include <stdio.h>
+#include <pthread.h>
+static void *server_loop_th(void *pserver_)
+{
+  std::printf("serverloop server2\n");
+  server.loop();
+  return 0;
+}
 int
 main()
 {
-  const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
-  const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
+  pthread_t thread;
+ 
+  if (pthread_create(&thread, NULL, server_loop_th, (&server)))
+    return 1;
+  //pthread_detach(thread);
+  sleep(1);
+
+  // register dataspace owner of the server side
   DataspaceOwner ds_side = DataspaceOwner(&server, STC_ipc_name); // name must be 11 characters long maximum
 
-  /*
-  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+  
+  // get interface to the dataspace owner of the client side
+  L4::Cap<IDataspaceOwner2> dss =L4Re::Env::env()->get_cap<IDataspaceOwner2>(CTS_ipc_name);
   if (!dss.is_valid()) {
     std::printf("Failed to get dss capability\n");
     return 1;
   }
-  dss->init(4096, 1000); // create a dataspace of 4096 bytes
-*/
+  dss->init(1024, 1000); // create a dataspace of 1024 bytes
+
   /*if (!server.registry()->register_obj(&ds_side, "crypto_ipc").is_valid())
   {
     printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
@@ -180,7 +199,9 @@ main()
   printf("Welcome to the Crypto server!\n"
          "I can provide a shared dataspace.\n");
   // Wait for client requests
-  server.loop();
+   server.loop();
+  //pthread_join(&thread, nullptr);
+  l4_sleep_forever();
   return 0;
 }
 

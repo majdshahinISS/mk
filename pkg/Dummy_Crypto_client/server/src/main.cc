@@ -16,25 +16,46 @@
 
 #include <l4/util/util.h>
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
+#include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared2.h"
 
 static L4Re::Util::Registry_server<> server;
+const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
+const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
+ 
+//#include <l4/irq/irq.h>
+#include <l4/util/util.h>
+#include <stdio.h>
+#include <pthread.h>
+static void *server_loop_th(void *data)
+{
+  std::printf("serverloop client\n");
+  //server.loop();
 
+  // get interface to the dataspace owner of the server side
+  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+  if (!dss.is_valid()) {
+    std::printf("Failed to get dss capability\n");
+    return nullptr;
+  }
+  dss->init(4096, 1000); // create a dataspace of 4096 bytes
+  
+  return 0;
+}
 
 int
 main()
 {
-  const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
-  const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
-  //DataspaceOwner ds_side = DataspaceOwner(&server, CTS_ipc_name); // name must be 11 characters long maximum
-
-  
-  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
-  if (!dss.is_valid()) {
-    std::printf("Failed to get dss capability\n");
+  pthread_t thread;
+  if (pthread_create(&thread, NULL, server_loop_th, NULL))
     return 1;
-  }
-  dss->init(4096, 1000); // create a dataspace of 4096 bytes
-  
+  //pthread_detach(thread);
+
+  sleep(1);
+
+  // register dataspace owner of the client side
+
+  DataspaceOwner2 ds_side = DataspaceOwner2(&server, CTS_ipc_name); // name must be 11 characters long maximum
+
 
   /*
   DS_Side  ds = DS_Side(
@@ -160,5 +181,8 @@ main()
     sleep(1);
     if (i == 5) break;
   }*/
+   server.loop();
+  //pthread_join(&thread, nullptr);
+  l4_sleep_forever();
   return 0;
 }
