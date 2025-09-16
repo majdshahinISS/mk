@@ -27,16 +27,17 @@ const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 #include <pthread.h>
 static void *server_loop_th(void *data)
 {
+  L4::Cap<IDataspaceOwner> * p_dss = (L4::Cap<IDataspaceOwner> *)data;
   std::printf("serverloop client\n");
   //server.loop();
 
   // get interface to the dataspace owner of the server side
-  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
-  if (!dss.is_valid()) {
+  *p_dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+  if (!(*p_dss).is_valid()) {
     std::printf("Failed to get dss capability\n");
     return nullptr;
   }
-  dss->init(4096, 1000); // create a dataspace of 4096 bytes
+  (*p_dss)->init(4096, 1000); // create a dataspace of 4096 bytes
   
   return 0;
 }
@@ -44,8 +45,9 @@ static void *server_loop_th(void *data)
 int
 main()
 {
+  L4::Cap<IDataspaceOwner> dss;
   pthread_t thread;
-  if (pthread_create(&thread, NULL, server_loop_th, NULL))
+  if (pthread_create(&thread, NULL, server_loop_th, (void*)&dss))
     return 1;
   //pthread_detach(thread);
 

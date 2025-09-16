@@ -145,25 +145,28 @@ public:
 #include <l4/util/util.h>
 #include <stdio.h>
 #include <pthread.h>
-static void *server_loop_th(void *pserver_)
+static void *server_loop_th(void *data)
 {
-  std::printf("serverloop server2\n");
-  // server.loop();
-    // get interface to the dataspace owner of the client side
-  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(CTS_ipc_name);
-  if (!dss.is_valid()) {
+  L4::Cap<IDataspaceOwner> * p_dss = (L4::Cap<IDataspaceOwner> *)data;
+  std::printf("serverloop client\n");
+  //server.loop();
+
+  // get interface to the dataspace owner of the server side
+  *p_dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(CTS_ipc_name);
+  if (!(*p_dss).is_valid()) {
     std::printf("Failed to get dss capability\n");
-    return 0;
+    return nullptr;
   }
-  dss->init(1024, 1000); // create a dataspace of 1024 bytes
+  (*p_dss)->init(4096, 1000); // create a dataspace of 4096 bytes
+  
   return 0;
 }
 int
 main()
 {
   pthread_t thread;
- 
-  if (pthread_create(&thread, NULL, server_loop_th, (&server)))
+  L4::Cap<IDataspaceOwner> dss;
+  if (pthread_create(&thread, NULL, server_loop_th, (void*)&dss))
     return 1;
   //pthread_detach(thread);
   //sleep(1);
