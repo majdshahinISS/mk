@@ -17,11 +17,40 @@
 #include <l4/util/util.h>
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
 
+static L4Re::Util::Registry_server<> server;
 
 
 int
 main()
 {
+  const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
+  const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
+  //DataspaceOwner ds_side = DataspaceOwner(&server, CTS_ipc_name); // name must be 11 characters long maximum
+
+  
+  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+  if (!dss.is_valid()) {
+    std::printf("Failed to get dss capability\n");
+    return 1;
+  }
+  dss->init(4096, 1000); // create a dataspace of 4096 bytes
+  
+
+  /*
+  DS_Side  ds = DS_Side(
+    &server
+    , CTS_ipc_name
+    , STC_ipc_name
+  );
+  if(ds.other_side)
+    {
+      std::printf("other side interface available!\n");
+      //ds.other_side->init(1024, 1000);
+    }
+  else
+    std::printf("other side interface is not available\n");
+*/
+  /*
   L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>("crypto_ipc");
   if (!dss.is_valid()) {
     std::printf("Failed to get dss capability\n");
@@ -73,7 +102,8 @@ main()
     sleep(1);
     if (i == 5) break;
   }
-  
+  */
+
 
  
   /*

@@ -143,11 +143,18 @@ public:
 int
 main()
 {
-  const l4_size_t Size = 6 * 1024 ;
-  const char *ipc_name = "crypto_ipc"; // name must be 11 characters long maximum
-  DataspaceOwner ds_side = DataspaceOwner(&server, ipc_name); // name must be 11 characters long maximum
+  const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
+  const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
+  DataspaceOwner ds_side = DataspaceOwner(&server, STC_ipc_name); // name must be 11 characters long maximum
 
-
+  /*
+  L4::Cap<IDataspaceOwner> dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+  if (!dss.is_valid()) {
+    std::printf("Failed to get dss capability\n");
+    return 1;
+  }
+  dss->init(4096, 1000); // create a dataspace of 4096 bytes
+*/
   /*if (!server.registry()->register_obj(&ds_side, "crypto_ipc").is_valid())
   {
     printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");

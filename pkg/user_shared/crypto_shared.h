@@ -33,7 +33,7 @@ struct ICrypto : L4::Kobject_t<ICrypto, L4::Kobject, 0x45>
   typedef L4::Typeid::Rpcs<dummy_t, CTS_getDS_t, CTS_ready_t> Rpcs;
 };
 
-struct IDataspaceOwner : L4::Kobject_t<IDataspaceOwner, L4::Kobject, 0x46>
+struct IDataspaceOwner : L4::Kobject_t<IDataspaceOwner, L4::Kobject, 0x47>
 {
   L4_INLINE_RPC(int, init, (const l4_size_t size, const u_int64_t timeout));
   L4_INLINE_RPC(int, getDS, (L4::Ipc::Out<L4::Cap<L4Re::Dataspace>> out_ds));
@@ -78,17 +78,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
 
 
   }
-  ~DataspaceOwner() {
-    /*if (p_ds) {
-      L4Re::Env::env()->rm()->detach(p_ds);
-      p_ds = nullptr;
-    }
-    if (ds.is_valid()) {
-      ds->release();
-      ds = L4::Cap<L4Re::Dataspace>();
-    } */
-
-  }
+  ~DataspaceOwner() {}
 
   int op_init(IDataspaceOwner::Rights, const l4_size_t size, const u_int64_t timeout)
   {
@@ -172,5 +162,50 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
     return 0;
   }
 };
+/*
+#include <memory>
+class DS_Side
+{
+private:
+  std::unique_ptr<DataspaceOwner> this_side;  // null initially
+  // new_data_callback_t incomming_new_data_handler;
+  // free_your_data_callback_t free_your_data_handler; // handel free data req. from the other side
+public:
+  L4::Cap<IDataspaceOwner> other_side ;
+  DS_Side(
+    L4Re::Util::Registry_server<> *server = nullptr,
+    const char *this_side_ipc_name = nullptr, 
+    const char *other_side_ipc_name = nullptr,
+    new_data_callback_t new_data_callback = nullptr,            // handle new available data from the other side
+    free_your_data_callback_t free_your_data_callback = nullptr // handle free data req. from the other side
+  ) 
+  {
+    if (server != nullptr && this_side_ipc_name != nullptr)
+    {
+        this_side = std::make_unique<DataspaceOwner>(
+        server, 
+        this_side_ipc_name,
+        new_data_callback,
+        free_your_data_callback // handle free data req. from the other side
+      ); // name must be 11 characters long maximum
+    }
+    else 
+      this_side = nullptr;
+    if (other_side_ipc_name != nullptr)
+    {
+      other_side =  L4::Cap<IDataspaceOwner>();
+      other_side =L4Re::Env::env()->get_cap<IDataspaceOwner>(other_side_ipc_name);
+      if (!other_side.is_valid()) {
+        std::printf("Failed to get dss capability\n");
+        return ;
+      }
+    }
+    //else
+      //other_side = nullptr;
+  }
+
+};
+
+*/
 
 #endif // __CRYPTO_SHARED_
