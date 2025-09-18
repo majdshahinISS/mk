@@ -25,6 +25,9 @@
 #include <l4/re/dataspace> 
 #include <l4/re/util/cap_alloc>
 
+#include <l4/util/util.h>
+#include <stdio.h>
+#include <pthread-l4.h>
 struct ICrypto : L4::Kobject_t<ICrypto, L4::Kobject, 0x45>
 {
   L4_INLINE_RPC(int, dummy, (int &x));
@@ -49,18 +52,27 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
 {
   L4::Cap<L4Re::Dataspace>  ds; // shared dataspace
   void * p_ds = nullptr;
-
+  l4_size_t size_ds;
+  u_int64_t timeout;
   //L4Re::Util::Registry_server<> *server;
   //char* ipc_name[11]; // must be 11 characters long maximum 
   new_data_callback_t new_data_callback_fn ; 
   free_your_data_callback_t free_your_data_callback_fn; 
+  L4Re::Util::Registry_server<> *server;
+  const char*  ipc_name;
+  #include <l4/sys/utcb.h>
+
+
   public:
+  void * get_pointer()  {return p_ds;}
+  l4_size_t get_size()  {return size_ds;}
+  u_int64_t get_timeout() {return timeout;}
   DataspaceOwner(
     L4Re::Util::Registry_server<> *server,
     const char*  ipc_name,
     new_data_callback_t new_data_callback = nullptr, 
     free_your_data_callback_t free_your_data_callback = nullptr 
-  ) 
+  ) : server(server), ipc_name(ipc_name)
   {
     ds = L4::Cap<L4Re::Dataspace>();
     ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
@@ -75,8 +87,6 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
       printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
       return ;
     }
-
-
   }
   ~DataspaceOwner() {}
 
@@ -96,13 +106,14 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
                 static_cast<unsigned long>(ds->size()));   
     // attach the dataspace
     void *addr = nullptr;
-    l4_size_t size_ds = ds->size();
+    size_ds = ds->size();
     err = L4Re::Env::env()->rm()->attach(
         &addr, size_ds,
         L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
         L4::Ipc::make_cap_rw(ds));                    // grant RW rights
     if (err < 0) {
       std::printf("DataspaceOwner: attach_ds: attach failed (%ld)\n", err);
+      size_ds = 0;
       return 1;
     }
     else {
@@ -114,7 +125,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   }
   int op_getDS(IDataspaceOwner::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
   {
-    out_ds = L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW);
+    out_ds = L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW);  // @MSTODO
     return L4_EOK;
   }
   int op_new_data(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)

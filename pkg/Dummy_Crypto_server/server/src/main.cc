@@ -144,8 +144,8 @@ public:
 //#include <l4/irq/irq.h>
 #include <l4/util/util.h>
 #include <stdio.h>
-#include <pthread.h>
-static void *server_loop_th(void *data)
+#include <pthread-l4.h>
+static void *server_loop_th2(void *data)
 {
   L4::Cap<IDataspaceOwner> * p_dss = (L4::Cap<IDataspaceOwner> *)data;
   std::printf("serverloop client\n");
@@ -161,20 +161,57 @@ static void *server_loop_th(void *data)
   
   return 0;
 }
+#include <l4/sys/utcb.h>
+static void *server_loop_th(void *arg)
+{
+  puts("server_loop_th: starting");
+  server.loop(l4_utcb());              // should never return
+  puts("server_loop_th: loop returned (error)"); // if it does, print it
+  return nullptr;
+}
+  pthread_t t;
+
+int start_server_loop()
+{
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+
+  // Bump stack: 64 KiB is a good start on L4Re
+  pthread_attr_setstacksize(&attr, 64 * 1024);
+
+  int rc = pthread_create(&t, &attr, server_loop_th, nullptr);
+  pthread_attr_destroy(&attr);
+
+  if (rc != 0) {
+    printf("pthread_create failed: %d\n", rc);   // EAGAIN => resources
+    return rc;
+  }
+
+ // pthread_detach(t);  // fire-and-forget
+  return 0;
+}
+
 int
 main()
 {
-  pthread_t thread;
-  L4::Cap<IDataspaceOwner> dss;
-  if (pthread_create(&thread, NULL, server_loop_th, (void*)&dss))
-    return 1;
-  //pthread_detach(thread);
-  //sleep(1);
+  std::printf("server\n");
+  //if (start_server_loop() != 0) return 1;
+
+  
 
   // register dataspace owner of the server side
   DataspaceOwner ds_side = DataspaceOwner(&server, STC_ipc_name); // name must be 11 characters long maximum
+  std::printf("server: %d\n",__LINE__);
 
-  
+
+  // get interface to the dataspace owner of the server side
+  L4::Cap<IDataspaceOwner> dss  =L4Re::Env::env()->get_cap<IDataspaceOwner>(CTS_ipc_name);
+  if (!dss.is_valid()) {
+    std::printf("Failed to get dss capability\n");
+    return 1;
+  }
+  dss->init(1024, 1000); // create a dataspace of 4096 bytes
+  std::printf("server: %d\n",__LINE__);
 
 
   /*if (!server.registry()->register_obj(&ds_side, "crypto_ipc").is_valid())
@@ -202,7 +239,7 @@ main()
   printf("Welcome to the Crypto server!\n"
          "I can provide a shared dataspace.\n");
   // Wait for client requests
-   server.loop();
+  server.loop();
   //pthread_join(&thread, nullptr);
   l4_sleep_forever();
   return 0;
@@ -289,7 +326,34 @@ static int attach_ds(L4::Cap<L4Re::Dataspace> ds, void **out_ptr, l4_size_t *out
 
   long err = L4Re::Env::env()->rm()->attach(
       &addr, size,
-      L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+      L4Re::Rm::F::Search_addrstatic void *server_loop_th(void *arg)
+{
+  puts("server_loop_th: starting");
+  server.loop(l4_utcb());              // should never return
+  puts("server_loop_th: loop returned (error)"); // if it does, print it
+  return nullptr;
+}
+  pthread_t t;
+
+int start_server_loop()
+{
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+
+  // Bump stack: 64 KiB is a good start on L4Re
+  pthread_attr_setstacksize(&attr, 64 * 1024);
+
+  int rc = pthread_create(&t, &attr, server_loop_th, nullptr);
+  pthread_attr_destroy(&attr);
+
+  if (rc != 0) {
+    printf("pthread_create failed: %d\n", rc);   // EAGAIN => resources
+    return rc;
+  }
+
+ // pthread_detach(t);  // fire-and-forget
+  return 0;
+} | L4Re::Rm::F::RW,   // find VA, map RW
       L4::Ipc::make_cap_rw(ds));                    // grant RW rights
 
   if (err < 0) {

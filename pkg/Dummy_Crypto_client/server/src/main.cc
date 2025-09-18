@@ -24,38 +24,100 @@ const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 //#include <l4/irq/irq.h>
 #include <l4/util/util.h>
 #include <stdio.h>
-#include <pthread.h>
-static void *server_loop_th(void *data)
-{
-  L4::Cap<IDataspaceOwner> * p_dss = (L4::Cap<IDataspaceOwner> *)data;
-  std::printf("serverloop client\n");
-  //server.loop();
+#include <pthread-l4.h>
 
-  // get interface to the dataspace owner of the server side
-  *p_dss =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
-  if (!(*p_dss).is_valid()) {
-    std::printf("Failed to get dss capability\n");
-    return nullptr;
+class client_
+{
+  private:
+    DataspaceOwner c_dso;
+
+    pthread_t t;
+    // server information (otherside)
+    L4::Cap<IDataspaceOwner>  s_intf;
+    l4_size_t s_size;
+    u_int64_t    s_timeout;
+    L4::Cap<L4Re::Dataspace>  s_ds;
+    void * s_addr = nullptr;
+
+    static void * server_intf_getter(void * args)
+    {
+      client_ * p = (client_ *) args;
+      p->s_intf->init(p->s_size, p->s_timeout);
+      
+      int r = p->s_intf->getDS(p->s_ds); 
+      if (r != L4_EOK) {
+        std::printf("getDS failed: error : 0x%x\n", r);
+        return nullptr;
+      }
+      else 
+      {
+        std::printf("getDS succeeded, dataspace size=%lu bytes\n",
+                    static_cast<unsigned long>(p->s_ds->size()));
+      } 
+
+      long err = L4Re::Env::env()->rm()->attach(
+          & p->s_addr, p->s_size,
+          L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+          L4::Ipc::make_cap(p->s_ds, L4_CAP_FPAGE_RW));                    // grant RW rights
+      if (err < 0) {
+        std::printf("attach_ds: attach failed (%ld)\n", err);
+        return nullptr;
+      }
+
+      return nullptr;
+    }
+
+    int start_geting_server_intf()
+    {
+      int rc = pthread_create(&t, nullptr, server_intf_getter, (void*)this);
+      return rc;
+    }
+
+  public:
+  client_(
+    L4Re::Util::Registry_server<> *server,
+    const char *CTS_ipc_name,
+    const char *STC_ipc_name,
+    l4_size_t   s_size,
+    u_int64_t    s_timeout
+  ): 
+      c_dso(server, CTS_ipc_name, nullptr, nullptr), 
+      s_size(s_size), 
+      s_timeout(s_timeout)
+  {
+    s_intf = L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+    s_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+
+    // @TODO check
+    start_geting_server_intf();
   }
-  (*p_dss)->init(4096, 1000); // create a dataspace of 4096 bytes
-  
-  return 0;
-}
+
+  ~client_()
+  {
+
+  }
+};
+
 
 int
 main()
 {
-  L4::Cap<IDataspaceOwner> dss;
-  pthread_t thread;
-  if (pthread_create(&thread, NULL, server_loop_th, (void*)&dss))
-    return 1;
-  //pthread_detach(thread);
-
-  //sleep(1);
-
+  std::printf("client\n");
   // register dataspace owner of the client side
 
   DataspaceOwner ds_side = DataspaceOwner(&server, CTS_ipc_name); // name must be 11 characters long maximum
+
+  //server.loop();
+  std::printf("client: %d\n",__LINE__);
+
+  // get interface to the dataspace owner of the server side
+  L4::Cap<IDataspaceOwner> dss  =L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+  if (!dss.is_valid()) {
+    std::printf("Failed to get dss capability\n");
+    return 1;
+  }
+  dss->init(4096, 1000); // create a dataspace of 4096 bytes
+  std::printf("client: %d\n",__LINE__);
 
 
   /*
@@ -182,7 +244,7 @@ main()
     sleep(1);
     if (i == 5) break;
   }*/
-   server.loop();
+  server.loop();
   //pthread_join(&thread, nullptr);
   l4_sleep_forever();
   return 0;
