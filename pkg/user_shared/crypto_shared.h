@@ -28,6 +28,9 @@
 #include <l4/util/util.h>
 #include <stdio.h>
 #include <pthread-l4.h>
+
+#include <atomic> 
+
 struct ICrypto : L4::Kobject_t<ICrypto, L4::Kobject, 0x45>
 {
   L4_INLINE_RPC(int, dummy, (int &x));
@@ -60,6 +63,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   free_your_data_callback_t free_your_data_callback_fn; 
   L4Re::Util::Registry_server<> *server;
   const char*  ipc_name;
+  std::atomic<bool> is_ready{false};
   #include <l4/sys/utcb.h>
 
 
@@ -67,6 +71,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   void * get_pointer()  {return p_ds;}
   l4_size_t get_size()  {return size_ds;}
   u_int64_t get_timeout() {return timeout;}
+  bool get_is_ready()   { return is_ready.load();}
   DataspaceOwner(
     L4Re::Util::Registry_server<> *server,
     const char*  ipc_name,
@@ -120,6 +125,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
       std::printf("DataspaceOwner: attach_ds: attached at %p, size=%lu\n",
                   addr, static_cast<unsigned long>(size_ds));
       p_ds = addr;
+      is_ready.store(true); 
     } 
     return 0; // not implemented
   }
@@ -173,50 +179,85 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
     return 0;
   }
 };
-/*
-#include <memory>
-class DS_Side
+
+
+
+class DataspaceEndpoint
 {
-private:
-  std::unique_ptr<DataspaceOwner> this_side;  // null initially
-  // new_data_callback_t incomming_new_data_handler;
-  // free_your_data_callback_t free_your_data_handler; // handel free data req. from the other side
-public:
-  L4::Cap<IDataspaceOwner> other_side ;
-  DS_Side(
-    L4Re::Util::Registry_server<> *server = nullptr,
-    const char *this_side_ipc_name = nullptr, 
-    const char *other_side_ipc_name = nullptr,
-    new_data_callback_t new_data_callback = nullptr,            // handle new available data from the other side
-    free_your_data_callback_t free_your_data_callback = nullptr // handle free data req. from the other side
-  ) 
-  {
-    if (server != nullptr && this_side_ipc_name != nullptr)
+  protected:
+    DataspaceOwner local_dataspaceOwner;
+
+    pthread_t t;
+    // server information (otherside)
+    L4::Cap<IDataspaceOwner>  peer_owner_intf;
+    l4_size_t peer_size;
+    u_int64_t    peer_timeout;
+    L4::Cap<L4Re::Dataspace>  peer_ds;
+    void * peer_addr = nullptr;
+    std::atomic<bool> peer_is_ready{false};
+
+    static void * server_intf_getter(void * args)
     {
-        this_side = std::make_unique<DataspaceOwner>(
-        server, 
-        this_side_ipc_name,
-        new_data_callback,
-        free_your_data_callback // handle free data req. from the other side
-      ); // name must be 11 characters long maximum
-    }
-    else 
-      this_side = nullptr;
-    if (other_side_ipc_name != nullptr)
-    {
-      other_side =  L4::Cap<IDataspaceOwner>();
-      other_side =L4Re::Env::env()->get_cap<IDataspaceOwner>(other_side_ipc_name);
-      if (!other_side.is_valid()) {
-        std::printf("Failed to get dss capability\n");
-        return ;
+      DataspaceEndpoint * p = (DataspaceEndpoint *) args;
+      if ( p->peer_is_ready.load() == true)
+        return nullptr;
+      
+      p->peer_owner_intf->init(p->peer_size, p->peer_timeout);
+      
+      int r = p->peer_owner_intf->getDS(p->peer_ds); 
+      if (r != L4_EOK) {
+        std::printf("getDS failed: error : 0x%x\n", r);
+        return nullptr;
       }
+      else 
+      {
+        std::printf("getDS succeeded, dataspace size=%lu bytes\n",
+                    static_cast<unsigned long>(p->peer_ds->size()));
+      } 
+
+      long err = L4Re::Env::env()->rm()->attach(
+          & p->peer_addr, p->peer_size,
+          L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,   // find VA, map RW
+          L4::Ipc::make_cap(p->peer_ds, L4_CAP_FPAGE_RW));                    // grant RW rights
+      if (err < 0) {
+        std::printf("attach_ds: attach failed (%ld)\n", err);
+        return nullptr;
+      }
+
+      return nullptr;
     }
-    //else
-      //other_side = nullptr;
+
+    int start_geting_server_intf()
+    {
+      int rc = pthread_create(&t, nullptr, server_intf_getter, (void*)this);
+      return rc;
+    }
+
+  public:
+  DataspaceEndpoint(
+    L4Re::Util::Registry_server<> *server,
+    const char *CTS_ipc_name,
+    const char *STC_ipc_name,
+    l4_size_t   peer_size,
+    u_int64_t    peer_timeout
+  ): 
+      local_dataspaceOwner(server, CTS_ipc_name, nullptr, nullptr), 
+      peer_size(peer_size), 
+      peer_timeout(peer_timeout)
+  {
+    peer_owner_intf = L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
+    peer_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+
+    // @TODO check
+    start_geting_server_intf();
   }
 
+  ~DataspaceEndpoint()
+  {
+
+  }
 };
 
-*/
+
 
 #endif // __CRYPTO_SHARED_
