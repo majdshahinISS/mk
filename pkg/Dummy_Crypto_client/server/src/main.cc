@@ -26,7 +26,10 @@ const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 #include <stdio.h>
 #include <pthread-l4.h>
 
+class Client_ : DataspaceEndpoint
+{
 
+};
 
 int
 main()

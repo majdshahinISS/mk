@@ -15,6 +15,7 @@
 #include <l4/sys/cxx/ipc_epiface>
 
 #include "/home/iss/L4Re_d/l4/pkg/user_shared/crypto_shared.h"
+#include "/home/iss/L4Re_d/l4/pkg/user_shared/LocalMemoryManager.hpp"
 
 
 #include <l4/re/util/cap_alloc> // For capability allocation
@@ -27,27 +28,54 @@ static L4Re::Util::Registry_server<> server;
   const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
   const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
+
+class Server_ : DataspaceEndpoint
+{
+
+};
 int
 main()
 {
   std::printf("server\n");
-  //if (start_server_loop() != 0) return 1;
 
-  
-
-  // register dataspace owner of the server side
-  DataspaceOwner ds_side = DataspaceOwner(&server, STC_ipc_name); // name must be 11 characters long maximum
-  std::printf("server: %d\n",__LINE__);
+  uint8_t big [1024*10];
+  LocalMemoryManager mm(big, 1024*10);
 
 
-  // get interface to the dataspace owner of the server side
-  L4::Cap<IDataspaceOwner> dss  =L4Re::Env::env()->get_cap<IDataspaceOwner>(CTS_ipc_name);
-  if (!dss.is_valid()) {
-    std::printf("Failed to get dss capability\n");
-    return 1;
-  }
-  dss->init(1024, 1000); // create a dataspace of 4096 bytes
-  std::printf("server: %d\n",__LINE__);
+
+void *a = mm.allocate_local(1000);
+  void *b = mm.allocate_local(2048);
+  void *c = mm.allocate_local(3000);
+
+  std::printf("a=%td b=%td c=%td\n",
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(a) - big),
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(b) - big),
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(c) - big));
+
+  mm.free_local(b, 2048);
+  void *d = mm.allocate_local(1024);
+  std::printf("d=%td\n",
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(d) - big));
+
+  mm.free_local(a, 1000);
+  mm.free_local(c, 3000);
+  mm.free_local(d, 1024);
+
+  void *e = mm.allocate_local(1024*10 - 128);
+  std::printf("e=%td\n",
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(e) - big));
+
+
+
+
+
+  DataspaceEndpoint obj = DataspaceEndpoint(
+    &server,
+    STC_ipc_name,
+    CTS_ipc_name,
+    5*1024,
+    1000 
+  );
 
   // Wait for client requests
   server.loop();

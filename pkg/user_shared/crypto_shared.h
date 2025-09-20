@@ -43,14 +43,14 @@ struct IDataspaceOwner : L4::Kobject_t<IDataspaceOwner, L4::Kobject, 0x47>
 {
   L4_INLINE_RPC(int, init, (const l4_size_t size, const u_int64_t timeout));
   L4_INLINE_RPC(int, getDS, (L4::Ipc::Out<L4::Cap<L4Re::Dataspace>> out_ds));
-  L4_INLINE_RPC(int, new_data, (u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size));
+  L4_INLINE_RPC(int, new_req, (u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size));
   L4_INLINE_RPC(int, free_your_data, (u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size));
   //L4_INLINE_RPC(int, placeholder, ());
-  typedef L4::Typeid::Rpcs< init_t, getDS_t, new_data_t, free_your_data_t> Rpcs;
+  typedef L4::Typeid::Rpcs< init_t, getDS_t, new_req_t, free_your_data_t> Rpcs;
 };
 
 typedef int (* free_your_data_callback_t)(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
-typedef int (* new_data_callback_t)(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
+typedef int (* new_req_callback_t)(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
 class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
 {
   L4::Cap<L4Re::Dataspace>  ds; // shared dataspace
@@ -59,7 +59,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   u_int64_t timeout;
   //L4Re::Util::Registry_server<> *server;
   //char* ipc_name[11]; // must be 11 characters long maximum 
-  new_data_callback_t new_data_callback_fn ; 
+  new_req_callback_t new_req_callback_fn ; 
   free_your_data_callback_t free_your_data_callback_fn; 
   L4Re::Util::Registry_server<> *server;
   const char*  ipc_name;
@@ -75,7 +75,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   DataspaceOwner(
     L4Re::Util::Registry_server<> *server,
     const char*  ipc_name,
-    new_data_callback_t new_data_callback = nullptr, 
+    new_req_callback_t new_req_callback = nullptr, 
     free_your_data_callback_t free_your_data_callback = nullptr 
   ) : server(server), ipc_name(ipc_name)
   {
@@ -85,7 +85,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
       std::printf("DataspaceOwner: Capability allocation failed\n");
       return;
     }
-    new_data_callback_fn = new_data_callback;
+    new_req_callback_fn = new_req_callback;
     free_your_data_callback_fn = free_your_data_callback;
     if (!server->registry()->register_obj(this, ipc_name).is_valid())
     {
@@ -134,9 +134,9 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
     out_ds = L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW);  // @MSTODO
     return L4_EOK;
   }
-  int op_new_data(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
+  int op_new_req(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
   {
-    std::printf("DataspaceOwner: new_data called id=%lu, type=%u, write_index=%lu, size=%lu\n",
+    std::printf("DataspaceOwner: new_req called id=%lu, type=%u, write_index=%lu, size=%lu\n",
                 static_cast<unsigned long>(id),
                 static_cast<unsigned int>(type),
                 static_cast<unsigned long>(write_index),
@@ -149,11 +149,11 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
       std::printf("DataspaceOwner: dataspace pointer is null\n");
       return 1;
     }
-    if (new_data_callback_fn) {
-      return new_data_callback_fn(id, type, write_index, size);
+    if (new_req_callback_fn) {
+      return new_req_callback_fn(id, type, write_index, size);
     }
     else
-      std::printf("DataspaceOwner: new_data_callback_fn is null\n");
+      std::printf("DataspaceOwner: new_req_callback_fn is null\n");
     
     return L4_EOK;
   }
@@ -239,9 +239,11 @@ class DataspaceEndpoint
     const char *CTS_ipc_name,
     const char *STC_ipc_name,
     l4_size_t   peer_size,
-    u_int64_t    peer_timeout
+    u_int64_t    peer_timeout,
+    new_req_callback_t new_req_callback_fn= nullptr , 
+    free_your_data_callback_t free_your_data_callback_fn  = nullptr  
   ): 
-      local_dataspaceOwner(server, CTS_ipc_name, nullptr, nullptr), 
+      local_dataspaceOwner(server, CTS_ipc_name, new_req_callback_fn, free_your_data_callback_fn), 
       peer_size(peer_size), 
       peer_timeout(peer_timeout)
   {
