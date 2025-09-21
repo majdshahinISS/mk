@@ -29,46 +29,35 @@ static L4Re::Util::Registry_server<> server;
   const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
 
-class Server_ : DataspaceEndpoint
+class Server_ : public DataspaceEndpoint
 {
+  LocalMemoryManager lmm;
+  public :
+  Server_(L4Re::Util::Registry_server<> *server,
+    const char *CTS_ipc_name,
+    const char *STC_ipc_name,
+    l4_size_t   peer_size,
+    u_int64_t    peer_timeout,
+    new_req_callback_t new_req_callback_fn= nullptr , 
+    free_your_data_callback_t free_your_data_callback_fn  = nullptr  
+    ):DataspaceEndpoint (server,
+        CTS_ipc_name,
+        STC_ipc_name,
+        peer_size,
+        peer_timeout,
+        new_req_callback_fn,
+        free_your_data_callback_fn)
+  {
 
+  }
 };
+
+////////////////////////////
 int
 main()
 {
   std::printf("server\n");
-
-  uint8_t big [1024*10];
-  LocalMemoryManager mm(big, 1024*10);
-
-
-
-void *a = mm.allocate_local(1000);
-  void *b = mm.allocate_local(2048);
-  void *c = mm.allocate_local(3000);
-
-  std::printf("a=%td b=%td c=%td\n",
-    (std::ptrdiff_t)(static_cast<std::uint8_t*>(a) - big),
-    (std::ptrdiff_t)(static_cast<std::uint8_t*>(b) - big),
-    (std::ptrdiff_t)(static_cast<std::uint8_t*>(c) - big));
-
-  mm.free_local(b, 2048);
-  void *d = mm.allocate_local(1024);
-  std::printf("d=%td\n",
-    (std::ptrdiff_t)(static_cast<std::uint8_t*>(d) - big));
-
-  mm.free_local(a, 1000);
-  mm.free_local(c, 3000);
-  mm.free_local(d, 1024);
-
-  void *e = mm.allocate_local(1024*10 - 128);
-  std::printf("e=%td\n",
-    (std::ptrdiff_t)(static_cast<std::uint8_t*>(e) - big));
-
-
-
-
-
+test3();
   DataspaceEndpoint obj = DataspaceEndpoint(
     &server,
     STC_ipc_name,

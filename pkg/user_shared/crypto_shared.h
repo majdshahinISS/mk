@@ -223,7 +223,7 @@ class DataspaceEndpoint
         std::printf("attach_ds: attach failed (%ld)\n", err);
         return nullptr;
       }
-
+      p->peer_is_ready.store(true);
       return nullptr;
     }
 

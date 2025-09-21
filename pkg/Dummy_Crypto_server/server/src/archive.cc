@@ -1,5 +1,135 @@
 #if 0
+/*
+test 2 for LocalMemoryManager with simple threading
 
+struct Block { void* p; std::size_t sz; };
+
+struct ThreadArg {
+  LocalMemoryManager* mm;
+  int                 tid;
+};
+
+void* worker(void* arg_void)
+{
+  ThreadArg* arg = static_cast<ThreadArg*>(arg_void);
+  LocalMemoryManager& mm = *arg->mm;
+  const int tid = arg->tid;
+
+  // Simple pattern: each thread tries to allocate a fixed number of blocks,
+  // then frees them. Sizes vary predictably by i and tid.
+  constexpr int N_BLOCKS   = 64;
+  Block blocks[N_BLOCKS];
+
+  // --- Allocate phase ---
+  for (int i = 0; i < N_BLOCKS; ++i) {
+    // sizes between 32 and 32 + 7*64 = 480 bytes (simple deterministic pattern)
+    std::size_t sz = 32u + std::size_t(((i + tid) % 8) * 64);
+    void* p = mm.allocate_local(sz);
+    blocks[i] = { p, sz };
+
+    // If allocation failed, free one earlier block (if any) to create churn
+    if (!p && i > 0 && blocks[i-1].p) {
+      mm.free_local(blocks[i-1].p, blocks[i-1].sz);
+      blocks[i-1] = { nullptr, 0 };
+      // Try once more
+      p = mm.allocate_local(sz);
+      blocks[i] = { p, sz };
+    }
+  }
+
+  // --- Free phase (reverse order to mix fragmentation) ---
+  for (int i = N_BLOCKS - 1; i >= 0; --i) {
+    if (blocks[i].p) {
+      mm.free_local(blocks[i].p, blocks[i].sz);
+      blocks[i] = { nullptr, 0 };
+    }
+  }
+
+  return nullptr;
+}
+
+
+int test_threads()
+{
+   constexpr std::size_t BUF_SIZE  = 10 * 1024;
+  static std::uint8_t backing[BUF_SIZE];
+  LocalMemoryManager mm(backing, BUF_SIZE);
+
+  // Create a small pool of threads
+  constexpr int N_THREADS = 600;
+  pthread_t tids[N_THREADS];
+  ThreadArg args[N_THREADS];
+
+  for (int t = 0; t < N_THREADS; ++t) {
+    args[t] = ThreadArg{ &mm, t };
+    if (pthread_create(&tids[t], nullptr, worker, &args[t]) != 0) {
+      std::perror("pthread_create");
+      return 1;
+    }
+  }
+
+  for (int t = 0; t < N_THREADS; ++t) {
+    if (pthread_join(tids[t], nullptr) != 0) {
+      std::perror("pthread_join");
+      return 1;
+    }
+  }
+
+  // After all threads finished and freed, try a large allocation as a sanity check.
+  void* big = mm.allocate_local(BUF_SIZE - 256);
+  if (!big) {
+    std::puts("[FAIL] Could not allocate big block after pthread stress.");
+    return 1;
+  }
+  std::puts("[OK] Big allocation succeeded after pthread stress.");
+  mm.free_local(big, BUF_SIZE - 256);
+
+  std::puts("Done.");
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------
+test 1 for LocalMemoryManager
+
+
+  uint8_t big [1024*10];
+  LocalMemoryManager mm(big, 1024*10);
+
+
+
+void *a = mm.allocate_local(1000);
+  void *b = mm.allocate_local(2048);
+  void *c = mm.allocate_local(3000);
+
+  std::printf("a=%td b=%td c=%td\n",
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(a) - big),
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(b) - big),
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(c) - big));
+
+  mm.free_local(b, 2048);
+  void *d = mm.allocate_local(1024);
+  std::printf("d=%td\n",
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(d) - big));
+
+  mm.free_local(a, 1000);
+  mm.free_local(c, 3000);
+  mm.free_local(d, 1024);
+
+  void *e = mm.allocate_local(1024*10 - 128);
+  std::printf("e=%td\n",
+    (std::ptrdiff_t)(static_cast<std::uint8_t*>(e) - big));
+
+
+
+*/
 /*
 static int create_dataspace(L4::Cap<L4Re::Dataspace> &ds ,const l4_size_t size) {
   // Allocate a capability slot for the dataspace
