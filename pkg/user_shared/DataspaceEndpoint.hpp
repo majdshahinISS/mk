@@ -20,14 +20,18 @@
 #include <atomic>
 
 #include "DataspaceOwner.hpp"
-
+#include "LocalMemoryManager.hpp"
 
 class DataspaceEndpoint
 {
-  protected:
-    DataspaceOwner local_dataspaceOwner;
+  private:
+    std::atomic<bool> all_is_ready{false};
 
-    pthread_t t;
+    LocalMemoryManager lmm;
+    DataspaceOwner local_dataspaceOwner;
+    std::atomic<bool> local_is_ready{false};
+
+    pthread_t th_peer_intf, th_local_mem;
     // server information (otherside)
     L4::Cap<IDataspaceOwner>  peer_owner_intf;
     l4_size_t peer_size;
@@ -64,12 +68,41 @@ class DataspaceEndpoint
         return nullptr;
       }
       p->peer_is_ready.store(true);
+      std::printf("peer is ready\n");
+      if (p->local_is_ready.load() == true)
+      {
+        std::printf("all is ready\n");
+        p->all_is_ready.store(true);
+      }
       return nullptr;
     }
 
     int start_geting_server_intf()
     {
-      int rc = pthread_create(&t, nullptr, server_intf_getter, (void*)this);
+      int rc = pthread_create(&th_peer_intf, nullptr, server_intf_getter, (void*)this);
+      return rc;
+    }
+
+    static void * localMemoryManager_initializer_th( void * arg)
+    {
+      DataspaceEndpoint * p = (DataspaceEndpoint*) arg;
+      while (p->local_dataspaceOwner.get_is_ready() == false)
+      {
+        usleep(1 * 10);
+      }
+      p->lmm.init(p->local_dataspaceOwner.get_pointer(), p->local_dataspaceOwner.get_size());
+      p->local_is_ready.store(true);
+      std::printf("local is ready\n");
+      if (p->peer_is_ready.load() == true)
+      {
+        std::printf("all is ready\n");
+        p->all_is_ready.store(true);
+      }
+      return nullptr;
+    }
+    int start_init_LocalMemoryManager()
+    {
+      int rc = pthread_create(&th_local_mem, nullptr, localMemoryManager_initializer_th, (void*)this);
       return rc;
     }
 
@@ -83,7 +116,7 @@ class DataspaceEndpoint
     new_req_callback_t new_req_callback_fn= nullptr , 
     free_your_data_callback_t free_your_data_callback_fn  = nullptr  
   ): 
-      local_dataspaceOwner(server, CTS_ipc_name, new_req_callback_fn, free_your_data_callback_fn), 
+      local_dataspaceOwner(server, CTS_ipc_name, new_req_callback_fn, free_your_data_callback_fn),
       peer_size(peer_size), 
       peer_timeout(peer_timeout)
   {
@@ -92,10 +125,43 @@ class DataspaceEndpoint
 
     // @TODO check
     start_geting_server_intf();
+    start_init_LocalMemoryManager();
   }
 
   ~DataspaceEndpoint()
   {
 
   }
+  void * allocate_local( l4_size_t size)
+  {
+    if ((local_is_ready.load()==false) || size > local_dataspaceOwner.get_size() )
+      return nullptr;
+
+    return lmm.allocate_local(size);
+    
+  }
+
+  int new_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
+  {
+    if (local_is_ready.load()==false)
+    {
+      std::printf("local dataspace is not ready yet\n");
+      return -1;
+    }
+    auto base_ptr = static_cast<const std::byte*>(local_dataspaceOwner.get_pointer());
+    auto ptr = static_cast<const std::byte*>(addr);
+    if(
+      ( ptr < base_ptr) 
+      || ptr > base_ptr + local_dataspaceOwner.get_size())
+    {
+      std::printf("Error , the address is not in the local data space \nplease use only the address allocated using allocate_local\n");
+      return -1;
+    }
+    l4_size_t write_index = ptr - base_ptr ;
+    peer_owner_intf->new_req(id, type, write_index, size);
+
+  }
+
+  
+
 };

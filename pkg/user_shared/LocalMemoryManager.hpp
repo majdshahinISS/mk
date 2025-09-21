@@ -39,7 +39,7 @@ public:
   void wait_for_is_ready()
   {
     while(is_ready.load()== false)
-        sleep(1);
+        usleep(100);
   }
 
   // Allocate a sub-buffer of at least `size` bytes; returns nullptr on failure.
