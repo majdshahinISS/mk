@@ -122,33 +122,30 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   }
   int op_getDS(IDataspaceOwner::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
   {
+    std::printf("getDS called\n\n");
     out_ds = L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW);  // @MSTODO
     return L4_EOK;
   }
-  int op_new_req(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
+
+  // the data is in the other side (peer) and not local !!!
+  int op_new_req(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index_peer, l4_size_t size)
   {
-    std::printf("DataspaceOwner: new_req called id=%lu, type=%u, write_index=%lu, size=%lu\n",
+    std::printf("DataspaceOwner: new_req called id=%lu, type=%u, write_index_peer=%lu, size=%lu\n",
                 static_cast<unsigned long>(id),
                 static_cast<unsigned int>(type),
-                static_cast<unsigned long>(write_index),
+                static_cast<unsigned long>(write_index_peer),
                 static_cast<unsigned long>(size));    
-    if (p_ds != nullptr) {
-      std::printf("DataspaceOwner read from dataspace: %s\n", (static_cast<char*>(p_ds) + write_index));
-      return L4_EOK;
-    }
-    else {
-      std::printf("DataspaceOwner: dataspace pointer is null\n");
-      return 1;
-    }
+/*
     if (new_req_callback_fn) {
-      return new_req_callback_fn(id, type, write_index, size);
+      return new_req_callback_fn(id, type, write_index_peer, size);
     }
     else
       std::printf("DataspaceOwner: new_req_callback_fn is null\n");
-    
+    */
     return L4_EOK;
   }
 
+  // request from peer to free data on local memory
   int op_free_your_data(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
   {
     std::printf("DataspaceOwner: free_your_data called id=%lu, type=%u, write_index=%lu, size=%lu\n",

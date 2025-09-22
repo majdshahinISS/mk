@@ -151,8 +151,8 @@ class DataspaceEndpoint
     return lmm.allocate_local(size);
     
   }
-
-  int new_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
+  // the address must be in local dataspace using LocalMemeoryManager
+  int add_new_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
   {
     if (local_is_ready.load()==false)
     {
@@ -171,6 +171,7 @@ class DataspaceEndpoint
     l4_size_t write_index = ptr - base_ptr ;
     peer_owner_intf->new_req(id, type, write_index, size);
 
+    return 0;
   }
 
   int free_peer_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)

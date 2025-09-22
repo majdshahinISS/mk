@@ -50,6 +50,8 @@ public:
         std::printf("LocalMemoryManager is not ready\n");
         return nullptr;
     }
+    else
+      std::printf("LocalMemoryManager is ready :) \n");
     std::lock_guard<std::mutex> lk(mtx_);
     if (!base_ || size == 0) return nullptr;
     const std::size_t need = align_up(size, kAlign);

@@ -15,8 +15,9 @@ static L4Re::Util::Registry_server<> server;
 
 static pthread_t th;
 
-static void * worker_local_mem_allocator(void * arg)
+static void * worker(void * arg)
 {
+  sleep(1);
   DataspaceEndpoint * ds = (DataspaceEndpoint *) arg;
   while (ds->all_is_ready.load() == false)
   {
@@ -25,10 +26,24 @@ static void * worker_local_mem_allocator(void * arg)
   std::printf("Dataspace endpoint is ready now!\n");
 
   void * addr = nullptr;
+  int i = 0;
   do 
   {
     addr = ds->allocate_local(64);
+    if(addr == nullptr)
+    {
+      std::printf("error return nullptr\n");
+      break;
+    }
     std::printf("new address at : %p , size: %d\n",addr, 64);
+
+    //sprintf((char *) addr, "req[%d]",i);
+    int ret = ds->add_new_req(i, 0, addr, 64);
+    if(ret != 0)
+    {
+      std::printf("error\n");
+    }
+    i++;
   }while (addr != nullptr);
   
   
