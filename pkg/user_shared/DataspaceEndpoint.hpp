@@ -111,6 +111,16 @@ class DataspaceEndpoint
       return 0;
     }
 
+    int default_new_data_callback(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
+    {
+      std::printf("new data : %s\n", ((char*)peer_addr + write_index));
+      return 0;
+    }
+    int dummy()
+    {
+      printf("dummy callback !\n");
+      return 0;
+    }
 
   public:
   DataspaceEndpoint(
@@ -131,6 +141,14 @@ class DataspaceEndpoint
       [this](u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
       return free_your_data_callback(id, type, write_index, size);}
     );
+
+    local_dataspaceOwner.set_new_req_callback(
+      [this](u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
+        return default_new_data_callback(id, type, write_index, size);
+        //return dummy();
+      }
+    );
+
     peer_owner_intf = L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
     peer_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
 

@@ -135,13 +135,13 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
                 static_cast<unsigned int>(type),
                 static_cast<unsigned long>(write_index_peer),
                 static_cast<unsigned long>(size));    
-/*
+
     if (new_req_callback_fn) {
       return new_req_callback_fn(id, type, write_index_peer, size);
     }
     else
       std::printf("DataspaceOwner: new_req_callback_fn is null\n");
-    */
+    
     return L4_EOK;
   }
 

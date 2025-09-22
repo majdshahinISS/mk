@@ -37,7 +37,7 @@ static void * worker(void * arg)
     }
     std::printf("new address at : %p , size: %d\n",addr, 64);
 
-    //sprintf((char *) addr, "req[%d]",i);
+    sprintf((char *) addr, "req[%d]",i);
     int ret = ds->add_new_req(i, 0, addr, 64);
     if(ret != 0)
     {
