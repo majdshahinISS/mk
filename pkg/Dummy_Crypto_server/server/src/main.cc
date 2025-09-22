@@ -13,29 +13,37 @@ static L4Re::Util::Registry_server<> server;
   const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
   const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
+static pthread_t th;
 
-class Server_ : public DataspaceEndpoint
+static void * worker_local_mem_allocator(void * arg)
 {
-  LocalMemoryManager lmm;
-  public :
-  Server_(L4Re::Util::Registry_server<> *server,
-    const char *CTS_ipc_name,
-    const char *STC_ipc_name,
-    l4_size_t   peer_size,
-    u_int64_t    peer_timeout,
-    new_req_callback_t new_req_callback_fn= nullptr , 
-    free_your_data_callback_t free_your_data_callback_fn  = nullptr  
-    ):DataspaceEndpoint (server,
-        CTS_ipc_name,
-        STC_ipc_name,
-        peer_size,
-        peer_timeout,
-        new_req_callback_fn,
-        free_your_data_callback_fn)
+  DataspaceEndpoint * ds = (DataspaceEndpoint *) arg;
+  while (ds->all_is_ready.load() == false)
   {
-
+    usleep(1000);
   }
-};
+  std::printf("Dataspace endpoint is ready now!\n");
+
+  void * addr = nullptr;
+  do 
+  {
+    addr = ds->allocate_local(64);
+    std::printf("new address at : %p , size: %d\n",addr, 64);
+  }while (addr != nullptr);
+  
+  
+
+  return nullptr;
+}
+
+void test(DataspaceEndpoint * ds)
+{
+  int rc = pthread_create(&th, NULL, worker, ds);
+  if (rc != 0) {
+    std::printf("pthread_create failed at (rc=%d)", rc);
+    return ;
+  }
+}
 
 ////////////////////////////
 int
@@ -50,7 +58,7 @@ main()
     5*1024,
     1000 
   );
-
+  test(&obj);
   // Wait for client requests
   server.loop();
   //pthread_join(&thread, nullptr);

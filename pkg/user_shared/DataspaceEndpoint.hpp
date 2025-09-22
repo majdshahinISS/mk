@@ -18,14 +18,13 @@
 #include <stdio.h>
 #include <pthread-l4.h>
 #include <atomic>
-
+#include <functional>
 #include "DataspaceOwner.hpp"
 #include "LocalMemoryManager.hpp"
 
 class DataspaceEndpoint
 {
   private:
-    std::atomic<bool> all_is_ready{false};
 
     LocalMemoryManager lmm;
     DataspaceOwner local_dataspaceOwner;
@@ -106,20 +105,32 @@ class DataspaceEndpoint
       return rc;
     }
 
+    int free_your_data_callback(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
+    {
+      std::printf("dummy free_your_data_callback , id: %lu\n", id);
+      return 0;
+    }
+
+
   public:
   DataspaceEndpoint(
     L4Re::Util::Registry_server<> *server,
     const char *CTS_ipc_name,
     const char *STC_ipc_name,
     l4_size_t   peer_size,
-    u_int64_t    peer_timeout,
-    new_req_callback_t new_req_callback_fn= nullptr , 
-    free_your_data_callback_t free_your_data_callback_fn  = nullptr  
+    u_int64_t    peer_timeout
+    // new_req_callback_t new_req_callback_fn= nullptr 
+    //free_your_data_callback_t free_your_data_callback_fn  = nullptr  
   ): 
-      local_dataspaceOwner(server, CTS_ipc_name, new_req_callback_fn, free_your_data_callback_fn),
+      local_dataspaceOwner(server, CTS_ipc_name),
       peer_size(peer_size), 
       peer_timeout(peer_timeout)
   {
+    //local_dataspaceOwner.set_free_your_data_callback(free_your_data_callback);
+    local_dataspaceOwner.set_free_your_data_callback(
+      [this](u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
+      return free_your_data_callback(id, type, write_index, size);}
+    );
     peer_owner_intf = L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
     peer_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
 
@@ -162,6 +173,27 @@ class DataspaceEndpoint
 
   }
 
-  
+  int free_peer_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
+  {
+    if(peer_is_ready.load() == false)
+    {
+      std::printf("Error, the peer is not ready yet");
+    }
+    auto base_ptr = static_cast<const std::byte*>(peer_addr);
+    auto ptr = static_cast<const std::byte*>(addr);
+    
+    if(
+      ( ptr < base_ptr) 
+      || ptr > base_ptr + local_dataspaceOwner.get_size())
+    {
+      std::printf("Error , the address is not in the local data space \nplease use only the address allocated using allocate_local\n");
+      return -1;
+    }
+    l4_size_t write_index = ptr - base_ptr ;
+    peer_owner_intf->free_your_data(id, type, write_index, size);
+    return 0;
+  }
+
+  std::atomic<bool> all_is_ready{false};
 
 };
