@@ -28,13 +28,20 @@ typedef int (* new_req_callback_t)(void * obj, u_int64_t id ,u_int8_t type, l4_s
 class DataspaceEndpoint
 {
   private:
-
+    struct WorkerArgs {
+        DataspaceEndpoint *ds;      // not owned
+        u_int64_t          id;
+        u_int8_t           type;
+        u_int8_t          *addr; // must remain valid while worker runs
+        l4_size_t          size;
+      };
     LocalMemoryManager lmm;
     DataspaceOwner local_dataspaceOwner;
     std::atomic<bool> local_is_ready{false};
 
     new_req_callback_t new_req_callback_fn = nullptr ;
     pthread_t th_peer_intf, th_local_mem;
+    pthread_attr_t attr;
     // server information (otherside)
     L4::Cap<IDataspaceOwner>  peer_owner_intf;
     l4_size_t peer_size;
@@ -84,7 +91,7 @@ class DataspaceEndpoint
 
     int start_geting_server_intf()
     {
-      int rc = pthread_create(&th_peer_intf, nullptr, server_intf_getter, (void*)this);
+      int rc = pthread_create(&th_peer_intf, &attr, server_intf_getter, (void*)this);
       return rc;
     }
 
@@ -107,17 +114,28 @@ class DataspaceEndpoint
     }
     int start_init_LocalMemoryManager()
     {
-      int rc = pthread_create(&th_local_mem, nullptr, localMemoryManager_initializer_th, (void*)this);
+      int rc = pthread_create(&th_local_mem, &attr, localMemoryManager_initializer_th, (void*)this);
       return rc;
     }
 
+    static void * free_peer_req_callback_thread(void * arg)
+    {
+      WorkerArgs * p = (WorkerArgs*) arg;
+
+      std::printf("dummy free_peer_req_callback , id: %lu, on local address %p\n", p->id, p->addr);
+
+      p->ds->lmm.free_local((void* )p->addr, p->size);
+      delete p;
+      return nullptr;
+    }
     int free_peer_req_callback(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
     {
       u_int8_t * addr = ((u_int8_t *)local_dataspaceOwner.get_pointer())+write_index;
-      std::printf("dummy free_peer_req_callback , id: %lu, on local address %p\n", id, addr);
+      WorkerArgs *p = new WorkerArgs{this, id, type, addr, size};
 
-      lmm.free_local((void* )addr, size);
-      return 0;
+      pthread_t tid;
+      int rc = pthread_create(&tid, &attr, free_peer_req_callback_thread, (void*)p);
+      return rc;
     }
     int new_data_callback_priv(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
     {
@@ -143,11 +161,6 @@ class DataspaceEndpoint
       int res = free_peer_req(id,type, read_addr, size);
       return res;
     }
-    int dummy()
-    {
-      printf("dummy callback !\n");
-      return 0;
-    }
 
   public:
   DataspaceEndpoint(
@@ -157,15 +170,14 @@ class DataspaceEndpoint
     l4_size_t   peer_size,
     u_int64_t    peer_timeout,
     std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, u_int8_t * addr, l4_size_t size)> new_req_callback_handler_= nullptr
-    // new_req_callback_t new_req_callback_fn= nullptr 
-    //free_peer_req_callback_t free_peer_req_callback_fn  = nullptr  
   ): 
       local_dataspaceOwner(server, CTS_ipc_name),
       peer_size(peer_size), 
       peer_timeout(peer_timeout),
       new_req_callback_handler(new_req_callback_handler_)
   {
-    //local_dataspaceOwner.set_free_peer_req_callback(free_peer_req_callback);
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     local_dataspaceOwner.set_free_peer_req_callback(
       [this](u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
       return free_peer_req_callback(id, type, write_index, size);}
@@ -175,7 +187,6 @@ class DataspaceEndpoint
     local_dataspaceOwner.set_new_req_callback(
       [this]( u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
           return new_data_callback_priv(id, type, write_index, size);          
-        //return dummy();
       }
     );
     
@@ -190,7 +201,7 @@ class DataspaceEndpoint
 
   ~DataspaceEndpoint()
   {
-
+    pthread_attr_destroy(&attr);
   }
   void * allocate_local( l4_size_t size)
   {
@@ -198,8 +209,40 @@ class DataspaceEndpoint
       return nullptr;
 
     return lmm.allocate_local(size);
-    
   }
+
+  void * allocate_local_blocking(l4_size_t size)
+  {
+    if( size > local_dataspaceOwner.get_size())
+      return nullptr;
+
+    while(local_is_ready.load()==false)
+      usleep(1000);
+    void * res = nullptr;
+    while(true)
+    {
+      res = lmm.allocate_local(size);
+      if (res == nullptr )
+        usleep(1000);
+      else
+        break;
+    }
+    return res;
+  }
+
+private:
+  static void * add_new_req_worker(void * arg)
+  {
+    WorkerArgs * p = (WorkerArgs*) arg;
+    u_int8_t* base_ptr = (u_int8_t*)(p->ds->local_dataspaceOwner.get_pointer());
+
+    l4_size_t write_index = p->addr - base_ptr ;
+    p->ds->peer_owner_intf->new_req(p->id, p->type, write_index, p->size);
+    
+    return nullptr;
+  }
+
+public:
   // the address must be in local dataspace using LocalMemeoryManager
   int add_new_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
   {
@@ -217,10 +260,10 @@ class DataspaceEndpoint
       std::printf("Error , the address is not in the local data space \nplease use only the address allocated using allocate_local\n");
       return -1;
     }
-    l4_size_t write_index = ptr - base_ptr ;
-    peer_owner_intf->new_req(id, type, write_index, size);
-
-    return 0;
+    WorkerArgs * p = new WorkerArgs{this, id, type, (u_int8_t*)ptr, size};
+    pthread_t tid;
+    int rc = pthread_create(&tid, &attr, add_new_req_worker, (void*)p);
+    return rc;
   }
 
   int free_peer_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
@@ -249,3 +292,4 @@ class DataspaceEndpoint
 
 
 };
+

@@ -44,7 +44,7 @@ static void * worker(void * arg)
       std::printf("error return nullptr\n");
       break;
     }
-    std::printf("new address at : %p , size: %d\n",addr, 256);
+    std::printf("to serve req. %d , new address at : %p , size: %d\n",i,addr, 256);
 
     sprintf((char *) addr, "req[%d]",i);
     int ret = ds->add_new_req(i, 0, addr, 256);
