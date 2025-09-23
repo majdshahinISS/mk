@@ -43,6 +43,7 @@ class DataspaceEndpoint
     void * peer_addr = nullptr;
     std::atomic<bool> peer_is_ready{false};
 
+    std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, u_int8_t *, l4_size_t size)> new_req_callback_handler;
   
     static void * server_intf_getter(void * args)
     {
@@ -122,11 +123,26 @@ class DataspaceEndpoint
     {
       if(all_is_ready.load() == false)
         return -1;
-      
-      u_int8_t * read_addr = ((u_int8_t *)peer_addr) + write_index;
-      return new_data_callback(id , type, read_addr, size);
+
+      u_int8_t * read_addr = ((u_int8_t *)peer_addr) + write_index;      
+      if ( new_req_callback_handler == nullptr)
+      {
+        std::printf(" new_req_callback_handler is null... using the default\n");
+        return new_data_callback_default(id , type, read_addr, size);
+      }
+      else
+        return new_req_callback_handler(this, id, type, read_addr, size);
     }
     
+    int new_data_callback_default(u_int64_t id, u_int8_t type, u_int8_t * read_addr , l4_size_t size)
+    {
+      // run in a thread ! 
+      std::printf("read from address: %p:%s\n",read_addr, read_addr);
+      sleep(1);
+      std::printf("request peer to free his data\n");
+      int res = free_peer_req(id,type, read_addr, size);
+      return res;
+    }
     int dummy()
     {
       printf("dummy callback !\n");
@@ -139,14 +155,15 @@ class DataspaceEndpoint
     const char *CTS_ipc_name,
     const char *STC_ipc_name,
     l4_size_t   peer_size,
-    u_int64_t    peer_timeout
+    u_int64_t    peer_timeout,
+    std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, u_int8_t * addr, l4_size_t size)> new_req_callback_handler_= nullptr
     // new_req_callback_t new_req_callback_fn= nullptr 
     //free_peer_req_callback_t free_peer_req_callback_fn  = nullptr  
   ): 
       local_dataspaceOwner(server, CTS_ipc_name),
       peer_size(peer_size), 
-      peer_timeout(peer_timeout)
-      // new_req_callback_fn(new_req_callback_fn)
+      peer_timeout(peer_timeout),
+      new_req_callback_handler(new_req_callback_handler_)
   {
     //local_dataspaceOwner.set_free_peer_req_callback(free_peer_req_callback);
     local_dataspaceOwner.set_free_peer_req_callback(
@@ -229,14 +246,6 @@ class DataspaceEndpoint
 
   std::atomic<bool> all_is_ready{false};
 
-  virtual int new_data_callback(u_int64_t id, u_int8_t type, u_int8_t * read_addr , l4_size_t size)
-  {
-    // run in a thread ! 
-    std::printf("read from address: %p:%s\n",read_addr, read_addr);
-    sleep(1);
-    std::printf("request peer to free his data\n");
-    int res = free_peer_req(id,type, read_addr, size);
-    return res;
-  }
+
 
 };
