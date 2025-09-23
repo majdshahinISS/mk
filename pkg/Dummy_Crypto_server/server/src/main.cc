@@ -35,15 +35,16 @@ static void * worker(void * arg)
       std::printf("error return nullptr\n");
       break;
     }
-    std::printf("new address at : %p , size: %d\n",addr, 64);
+    std::printf("new address at : %p , size: %d\n",addr, 256);
 
     sprintf((char *) addr, "req[%d]",i);
-    int ret = ds->add_new_req(i, 0, addr, 64);
+    int ret = ds->add_new_req(i, 0, addr, 256);
     if(ret != 0)
     {
       std::printf("error\n");
     }
     i++;
+    if (i == 50) break;
   }while (addr != nullptr);
   
   

@@ -30,10 +30,8 @@ struct IDataspaceOwner : L4::Kobject_t<IDataspaceOwner, L4::Kobject, 0x47>
   typedef L4::Typeid::Rpcs< init_t, getDS_t, new_req_t, free_your_data_t> Rpcs;
 };
 
-typedef int (* free_your_data_callback_t)(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
-typedef int (* new_req_callback_t)(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
 
-using free_your_data_callback_h = std::function<int(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)>;
+using free_peer_req_callback_h = std::function<int(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)>;
 using new_req_callback_h = std::function<int(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)>;
 class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
 {
@@ -43,17 +41,17 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   u_int64_t timeout;
   //L4Re::Util::Registry_server<> *server;
   //char* ipc_name[11]; // must be 11 characters long maximum 
-  free_your_data_callback_h new_req_callback_fn ; 
-  new_req_callback_h free_your_data_callback_fn; 
+  free_peer_req_callback_h new_req_callback_fn ; 
+  new_req_callback_h free_peer_req_callback_fn; 
   L4Re::Util::Registry_server<> *server;
   const char*  ipc_name;
   std::atomic<bool> is_ready{false};
 
 
   public:
-  void set_free_your_data_callback(free_your_data_callback_h h)
+  void set_free_peer_req_callback(free_peer_req_callback_h h)
   {
-    free_your_data_callback_fn = std::move(h);
+    free_peer_req_callback_fn = std::move(h);
   }
   void set_new_req_callback(new_req_callback_h h )
   {
@@ -67,7 +65,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
     L4Re::Util::Registry_server<> *server,
     const char*  ipc_name
     //Handler new_req_callback = nullptr, 
-    //Handler free_your_data_callback = nullptr 
+    //Handler free_peer_req_callback = nullptr 
   ) : server(server), ipc_name(ipc_name)
   {
     ds = L4::Cap<L4Re::Dataspace>();
@@ -77,7 +75,7 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
       return;
     }
     //new_req_callback_fn = new_req_callback;
-    //free_your_data_callback_fn = free_your_data_callback;
+    //free_peer_req_callback_fn = free_peer_req_callback;
     if (!server->registry()->register_obj(this, ipc_name).is_valid())
     {
       printf("Could not register my service, is there a 'crypto_ipc' in the caps table?\n");
@@ -153,11 +151,11 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
                 static_cast<unsigned int>(type),
                 static_cast<unsigned long>(write_index),
                 static_cast<unsigned long>(size));    
-    if (free_your_data_callback_fn) {
-      return free_your_data_callback_fn(id, type, write_index, size);
+    if (free_peer_req_callback_fn) {
+      return free_peer_req_callback_fn(id, type, write_index, size);
     }
     else
-      std::printf("DataspaceOwner: free_your_data_callback_fn is null\n");
+      std::printf("DataspaceOwner: free_peer_req_callback_fn is null\n");
     return L4_EOK;
   } 
 

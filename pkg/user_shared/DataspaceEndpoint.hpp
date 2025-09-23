@@ -22,6 +22,9 @@
 #include "DataspaceOwner.hpp"
 #include "LocalMemoryManager.hpp"
 
+typedef int (* new_req_callback_t)(void * obj, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
+//typedef int (* free_peer_req_callback_t)( u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size);
+
 class DataspaceEndpoint
 {
   private:
@@ -30,6 +33,7 @@ class DataspaceEndpoint
     DataspaceOwner local_dataspaceOwner;
     std::atomic<bool> local_is_ready{false};
 
+    new_req_callback_t new_req_callback_fn = nullptr ;
     pthread_t th_peer_intf, th_local_mem;
     // server information (otherside)
     L4::Cap<IDataspaceOwner>  peer_owner_intf;
@@ -39,6 +43,7 @@ class DataspaceEndpoint
     void * peer_addr = nullptr;
     std::atomic<bool> peer_is_ready{false};
 
+  
     static void * server_intf_getter(void * args)
     {
       DataspaceEndpoint * p = (DataspaceEndpoint *) args;
@@ -105,17 +110,23 @@ class DataspaceEndpoint
       return rc;
     }
 
-    int free_your_data_callback(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
+    int free_peer_req_callback(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
     {
-      std::printf("dummy free_your_data_callback , id: %lu\n", id);
-      return 0;
-    }
+      u_int8_t * addr = ((u_int8_t *)local_dataspaceOwner.get_pointer())+write_index;
+      std::printf("dummy free_peer_req_callback , id: %lu, on local address %p\n", id, addr);
 
-    int default_new_data_callback(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
-    {
-      std::printf("new data : %s\n", ((char*)peer_addr + write_index));
+      lmm.free_local((void* )addr, size);
       return 0;
     }
+    int new_data_callback_priv(u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
+    {
+      if(all_is_ready.load() == false)
+        return -1;
+      
+      u_int8_t * read_addr = ((u_int8_t *)peer_addr) + write_index;
+      return new_data_callback(id , type, read_addr, size);
+    }
+    
     int dummy()
     {
       printf("dummy callback !\n");
@@ -130,24 +141,27 @@ class DataspaceEndpoint
     l4_size_t   peer_size,
     u_int64_t    peer_timeout
     // new_req_callback_t new_req_callback_fn= nullptr 
-    //free_your_data_callback_t free_your_data_callback_fn  = nullptr  
+    //free_peer_req_callback_t free_peer_req_callback_fn  = nullptr  
   ): 
       local_dataspaceOwner(server, CTS_ipc_name),
       peer_size(peer_size), 
       peer_timeout(peer_timeout)
+      // new_req_callback_fn(new_req_callback_fn)
   {
-    //local_dataspaceOwner.set_free_your_data_callback(free_your_data_callback);
-    local_dataspaceOwner.set_free_your_data_callback(
+    //local_dataspaceOwner.set_free_peer_req_callback(free_peer_req_callback);
+    local_dataspaceOwner.set_free_peer_req_callback(
       [this](u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
-      return free_your_data_callback(id, type, write_index, size);}
+      return free_peer_req_callback(id, type, write_index, size);}
     );
 
+
     local_dataspaceOwner.set_new_req_callback(
-      [this](u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
-        return default_new_data_callback(id, type, write_index, size);
+      [this]( u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size) -> int {
+          return new_data_callback_priv(id, type, write_index, size);          
         //return dummy();
       }
     );
+    
 
     peer_owner_intf = L4Re::Env::env()->get_cap<IDataspaceOwner>(STC_ipc_name);
     peer_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
@@ -214,5 +228,15 @@ class DataspaceEndpoint
   }
 
   std::atomic<bool> all_is_ready{false};
+
+  virtual int new_data_callback(u_int64_t id, u_int8_t type, u_int8_t * read_addr , l4_size_t size)
+  {
+    // run in a thread ! 
+    std::printf("read from address: %p:%s\n",read_addr, read_addr);
+    sleep(1);
+    std::printf("request peer to free his data\n");
+    int res = free_peer_req(id,type, read_addr, size);
+    return res;
+  }
 
 };
