@@ -39,7 +39,7 @@ static void * worker(void * arg)
   do 
   {
     //usleep(1);
-    addr = ds->allocate_local(64);
+    addr = ds->allocate_local_blocking(64);
     if(addr == nullptr)
     {
       std::printf("error return nullptr\n");
@@ -54,7 +54,7 @@ static void * worker(void * arg)
       std::printf("error\n");
     }
     i++;
-    if (i == 50) break;
+    //if (i == 50) break;
   }while (addr != nullptr);
   
   

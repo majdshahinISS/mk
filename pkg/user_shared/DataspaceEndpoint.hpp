@@ -216,18 +216,7 @@ class DataspaceEndpoint
     if( size > local_dataspaceOwner.get_size())
       return nullptr;
 
-    while(local_is_ready.load()==false)
-      usleep(1000);
-    void * res = nullptr;
-    while(true)
-    {
-      res = lmm.allocate_local(size);
-      if (res == nullptr )
-        usleep(1000);
-      else
-        break;
-    }
-    return res;
+    return lmm.allocate_local_wait(size);
   }
 
 private:

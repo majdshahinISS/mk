@@ -21,7 +21,25 @@ struct WorkerArgs
   l4_size_t          size;
 };
 
+static u_int64_t get_id(char * s)
+{
+  std::string input = std::string(s);
+  u_int64_t n = 0;
 
+    // Find the position of '[' and ']'
+    size_t start = input.find('[');
+    size_t end = input.find(']');
+
+    if (start != std::string::npos && end != std::string::npos && start < end) {
+        // Extract the substring containing the number
+        std::string number_str = input.substr(start + 1, end - start - 1);
+
+        // Convert the string to u_int64_t
+        n = static_cast<u_int64_t>(std::strtol(number_str.c_str(), nullptr, 10));
+    }
+  return n;
+}
+static int errors = 0;
 // ---- worker function (runs on detached pthread) ----
 static void *handle_new_data_worker(void *opaque)
 {
@@ -30,7 +48,12 @@ static void *handle_new_data_worker(void *opaque)
 
   std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
   //usleep(1);
-
+  u_int64_t ids = get_id((char*)args->addr);
+  if(ids != args->id)
+  {
+    errors++;
+    std::printf("@ERROR %d\n", errors);
+  }
   std::printf("request peer to free his data\n");
   int res = args->ds->free_peer_req(args->id, args->type, args->addr, args->size);
   if (res)
