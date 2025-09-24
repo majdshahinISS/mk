@@ -124,7 +124,7 @@ class DataspaceEndpoint
 
       std::printf("dummy free_peer_req_callback , id: %lu, on local address %p\n", p->id, p->addr);
 
-      p->ds->lmm.free_local((void* )p->addr, p->size);
+      p->ds->lmm.free_local((void* )p->addr);
       delete p;
       return nullptr;
     }

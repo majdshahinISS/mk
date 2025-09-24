@@ -29,7 +29,7 @@ static void *handle_new_data_worker(void *opaque)
   WorkerArgs *args = static_cast<WorkerArgs*>(opaque);
 
   std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
-  usleep(1);
+  //usleep(1);
 
   std::printf("request peer to free his data\n");
   int res = args->ds->free_peer_req(args->id, args->type, args->addr, args->size);

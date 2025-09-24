@@ -38,6 +38,7 @@ static void * worker(void * arg)
   int i = 0;
   do 
   {
+    //usleep(1);
     addr = ds->allocate_local(64);
     if(addr == nullptr)
     {
