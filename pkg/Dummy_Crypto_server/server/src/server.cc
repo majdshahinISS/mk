@@ -8,22 +8,21 @@
 
 #include "DataspaceEndpoint.hpp"
 #include "LocalMemoryManager.hpp"
+#include "helperFunctions.hpp"
 
 static L4Re::Util::Registry_server<> server;
   const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
   const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
-inline void xor_bytes(const u_int8_t* in, std::size_t n, u_int8_t* out, u_int8_t key)
-{
-  if (!in || !out) return;
-  for (std::size_t i = 0; i < n; ++i)
-    out[i] = static_cast<u_int8_t>(in[i] ^ key);
-}
+
 int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type, u_int8_t * read_addr , l4_size_t size)
 {
   // run in a thread ! 
-  std::printf("@MS Server , read from address: %p:%s\n",read_addr, read_addr);
-  sleep(1);
+  u_int64_t ids = get_id((char*)read_addr);
+  if(ids != id )
+    std::printf("Error id %d\n", id);
+  std::printf("@MS Server , reads req %d from address: %p:%s\n",id,read_addr, read_addr);
+  //sleep(1);
   std::printf("request peer to free his data\n");
   int res = ds->free_peer_req(id,type, read_addr, size);
   return res;
@@ -44,12 +43,12 @@ static void * worker(void * arg)
   int i = 0;
   do 
   {
-  thread_local std::mt19937_64 rng(std::random_device{}());
-  std::uniform_int_distribution<std::size_t> size_dist(32, 256);
-  std::uniform_int_distribution<unsigned>     byte_dist(0, 255);
+    thread_local std::mt19937_64 rng(std::random_device{}());
+    std::uniform_int_distribution<std::size_t> size_dist(32, 256);
+    // std::uniform_int_distribution<unsigned>     byte_dist(0, 255);
 
-  // 1) random size in [32, 256]
-  const std::size_t size = size_dist(rng);
+    // 1) random size in [32, 256]
+    const std::size_t size = size_dist(rng);
     addr = ds->allocate_local_blocking(size);
     if(addr == nullptr)
     {
@@ -58,9 +57,7 @@ static void * worker(void * arg)
     }
     std::printf("to serve req. %d , new address at : %p , size: %d\n",i,addr, size);
 
-    auto *p = static_cast<std::uint8_t*>(addr);
-    for (std::size_t i = 0; i < size; ++i)
-      p[i] = static_cast<std::uint8_t>(byte_dist(rng));
+    sprintf((char*)addr, "req[%d], ISS-AG",i);
 
     int ret = ds->add_new_req(i, 0, addr, size);
     if(ret != 0)

@@ -7,7 +7,7 @@
 // #include <pthread-l4.h>
 
 #include "DataspaceEndpoint.hpp"
-
+#include "helperFunctions.hpp"
 static L4Re::Util::Registry_server<> server;
 const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
 const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
@@ -21,24 +21,7 @@ struct WorkerArgs
   l4_size_t          size;
 };
 
-static u_int64_t get_id(char * s)
-{
-  std::string input = std::string(s);
-  u_int64_t n = 0;
 
-    // Find the position of '[' and ']'
-    size_t start = input.find('[');
-    size_t end = input.find(']');
-
-    if (start != std::string::npos && end != std::string::npos && start < end) {
-        // Extract the substring containing the number
-        std::string number_str = input.substr(start + 1, end - start - 1);
-
-        // Convert the string to u_int64_t
-        n = static_cast<u_int64_t>(std::strtol(number_str.c_str(), nullptr, 10));
-    }
-  return n;
-}
 static int errors = 0;
 // ---- worker function (runs on detached pthread) ----
 static void *handle_new_data_worker(void *opaque)
@@ -46,7 +29,7 @@ static void *handle_new_data_worker(void *opaque)
   // Take ownership of the args object to ensure it’s freed
   WorkerArgs *args = static_cast<WorkerArgs*>(opaque);
 
-  //std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
+  std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
   //usleep(1);
   u_int64_t ids = get_id((char*)args->addr);
   if(ids != args->id)
@@ -54,6 +37,23 @@ static void *handle_new_data_worker(void *opaque)
     errors++;
     std::printf("@ERROR %d\n", errors);
   }
+
+  void * replay = args->ds->allocate_local_blocking(args->size);
+  if(replay == nullptr)
+  {
+    std::printf("cannot replay on req %d\n",args->id);
+  }
+  else
+  {
+    for(int i = 0; i < args->size; i++)
+    {
+      ((char*)replay)[i] = toupper(args->addr[i]);
+    }
+    args->ds->add_new_req(args->id, 1, replay, args->size);
+  }
+
+
+
   std::printf("request peer to free his data\n");
   int res = args->ds->free_peer_req(args->id, args->type, args->addr, args->size);
   if (res)
