@@ -2,7 +2,7 @@ PKGDIR   ?= ../..
 L4DIR    ?= $(PKGDIR)/../..
 
 TARGET	:= Dummy_Crypto_client
-SRC_CC	:= main.cc 
+SRC_CC	:= client.cc 
 
 CXXFLAGS += -I$(L4DIR)/pkg/user_shared
 

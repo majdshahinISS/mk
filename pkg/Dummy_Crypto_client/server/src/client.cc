@@ -46,7 +46,7 @@ static void *handle_new_data_worker(void *opaque)
   // Take ownership of the args object to ensure it’s freed
   WorkerArgs *args = static_cast<WorkerArgs*>(opaque);
 
-  std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
+  //std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
   //usleep(1);
   u_int64_t ids = get_id((char*)args->addr);
   if(ids != args->id)

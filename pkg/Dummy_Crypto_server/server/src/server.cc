@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <cstring>
-
+#include <random>
 // #include <pthread-l4.h>
 
 #include "DataspaceEndpoint.hpp"
@@ -13,6 +13,12 @@ static L4Re::Util::Registry_server<> server;
   const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
   const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
+inline void xor_bytes(const u_int8_t* in, std::size_t n, u_int8_t* out, u_int8_t key)
+{
+  if (!in || !out) return;
+  for (std::size_t i = 0; i < n; ++i)
+    out[i] = static_cast<u_int8_t>(in[i] ^ key);
+}
 int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type, u_int8_t * read_addr , l4_size_t size)
 {
   // run in a thread ! 
@@ -38,17 +44,25 @@ static void * worker(void * arg)
   int i = 0;
   do 
   {
-    //usleep(1);
-    addr = ds->allocate_local_blocking(64);
+  thread_local std::mt19937_64 rng(std::random_device{}());
+  std::uniform_int_distribution<std::size_t> size_dist(32, 256);
+  std::uniform_int_distribution<unsigned>     byte_dist(0, 255);
+
+  // 1) random size in [32, 256]
+  const std::size_t size = size_dist(rng);
+    addr = ds->allocate_local_blocking(size);
     if(addr == nullptr)
     {
       std::printf("error return nullptr\n");
       break;
     }
-    std::printf("to serve req. %d , new address at : %p , size: %d\n",i,addr, 256);
+    std::printf("to serve req. %d , new address at : %p , size: %d\n",i,addr, size);
 
-    sprintf((char *) addr, "req[%d]",i);
-    int ret = ds->add_new_req(i, 0, addr, 256);
+    auto *p = static_cast<std::uint8_t*>(addr);
+    for (std::size_t i = 0; i < size; ++i)
+      p[i] = static_cast<std::uint8_t>(byte_dist(rng));
+
+    int ret = ds->add_new_req(i, 0, addr, size);
     if(ret != 0)
     {
       std::printf("error\n");
