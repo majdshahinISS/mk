@@ -21,9 +21,8 @@ int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type
   u_int64_t ids = get_id((char*)read_addr);
   if(ids != id )
     std::printf("Error id %d\n", id);
-  std::printf("@MS Server , reads req %d from address: %p:%s\n",id,read_addr, read_addr);
+  std::printf("handle req. id %d, read from address: %p : %s\n",id, static_cast<void*>(read_addr), read_addr);
   //sleep(1);
-  std::printf("request peer to free his data\n");
   int res = ds->free_peer_req(id,type, read_addr, size);
   return res;
 }
@@ -55,7 +54,7 @@ static void * worker(void * arg)
       std::printf("error return nullptr\n");
       break;
     }
-    std::printf("to serve req. %d , new address at : %p , size: %d\n",i,addr, size);
+    //std::printf("to serve req. %d , new address at : %p , size: %d\n",i,addr, size);
 
     sprintf((char*)addr, "req[%d], ISS-AG",i);
 

@@ -29,7 +29,7 @@ static void *handle_new_data_worker(void *opaque)
   // Take ownership of the args object to ensure it’s freed
   WorkerArgs *args = static_cast<WorkerArgs*>(opaque);
 
-  std::printf("@MS Client serve req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
+  std::printf("handle req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
   //usleep(1);
   u_int64_t ids = get_id((char*)args->addr);
   if(ids != args->id)
@@ -53,8 +53,7 @@ static void *handle_new_data_worker(void *opaque)
   }
 
 
-
-  std::printf("request peer to free his data\n");
+  //args->addr[0]= 'S';
   int res = args->ds->free_peer_req(args->id, args->type, args->addr, args->size);
   if (res)
     std::printf("free_peer_req failed: %d\n", res);

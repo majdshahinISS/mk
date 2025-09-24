@@ -121,19 +121,19 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   int op_getDS(IDataspaceOwner::Rights, L4::Ipc::Cap<L4Re::Dataspace> &out_ds)
   {
     std::printf("getDS called\n\n");
-    out_ds = L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW);  // @MSTODO
+    out_ds = L4::Ipc::make_cap(ds, L4_CAP_FPAGE_R);  // @MSTODO
     return L4_EOK;
   }
 
   // the data is in the other side (peer) and not local !!!
   int op_new_req(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index_peer, l4_size_t size)
   {
-    std::printf("DataspaceOwner: new_req called id=%lu, type=%u, write_index_peer=%lu, size=%lu\n",
+    /*std::printf("DataspaceOwner: new_req called id=%lu, type=%u, write_index_peer=%lu, size=%lu\n",
                 static_cast<unsigned long>(id),
                 static_cast<unsigned int>(type),
                 static_cast<unsigned long>(write_index_peer),
                 static_cast<unsigned long>(size));    
-
+    */
     if (new_req_callback_fn) {
       return new_req_callback_fn(id, type, write_index_peer, size);
     }
@@ -146,11 +146,11 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
   // request from peer to free data on local memory
   int op_free_your_data(IDataspaceOwner::Rights, u_int64_t id ,u_int8_t type, l4_size_t write_index, l4_size_t size)
   {
-    std::printf("DataspaceOwner: free_your_data called id=%lu, type=%u, write_index=%lu, size=%lu\n",
+    /*std::printf("DataspaceOwner: free_your_data called id=%lu, type=%u, write_index=%lu, size=%lu\n",
                 static_cast<unsigned long>(id),
                 static_cast<unsigned int>(type),
                 static_cast<unsigned long>(write_index),
-                static_cast<unsigned long>(size));    
+                static_cast<unsigned long>(size));  */  
     if (free_peer_req_callback_fn) {
       return free_peer_req_callback_fn(id, type, write_index, size);
     }
@@ -159,9 +159,4 @@ class DataspaceOwner : public L4::Epiface_t<DataspaceOwner, IDataspaceOwner>
     return L4_EOK;
   } 
 
-  int op_placeholder(IDataspaceOwner::Rights)
-  {
-    std::printf("DataspaceOwner: placeholder called\n");
-    return 0;
-  }
 };

@@ -235,6 +235,7 @@ public:
   // the address must be in local dataspace using LocalMemeoryManager
   int add_new_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
   {
+    std::printf("sending new req. to peer , id %lu, type %d local addr %p , size %lu \n", id, type, addr, size);
     if (local_is_ready.load()==false)
     {
       std::printf("local dataspace is not ready yet\n");
@@ -257,6 +258,7 @@ public:
 
   int free_peer_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
   {
+    std::printf("free_peer_req, id: %lu\n",id);
     if(peer_is_ready.load() == false)
     {
       std::printf("Error, the peer is not ready yet");
@@ -277,8 +279,6 @@ public:
   }
 
   std::atomic<bool> all_is_ready{false};
-
-
 
 };
 
