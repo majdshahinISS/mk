@@ -17,47 +17,47 @@
 //  - No dynamic heap allocations for metadata (fixed node pool).
 //
 // Public API:
-//   void* allocate_local(std::size_t size);
+//   void* allocate_local(l4_size_t size);
 //   void  free_local(void* addr);                     // preferred
-//   void  free_local(void* addr, std::size_t size);   // compatibility (asserts)
+//   void  free_local(void* addr, l4_size_t size);   // compatibility (asserts)
 //
 // Debug builds enforce invariants after each operation.
 class LocalMemoryManager
 {
 public:
   // Compile-time knobs
-  static constexpr std::size_t kAlign    = 16;     // 16-byte alignment
-  static constexpr std::size_t kMaxNodes = 256;    // max free-list fragments
+  static constexpr l4_size_t kAlign    = 16;     // 16-byte alignment
+  static constexpr l4_size_t kMaxNodes = 256;    // max free-list fragments
 
   // Allocation header written immediately before the returned user pointer
   struct Header {
-    std::uint32_t size;   // aligned user payload size
-    std::uint32_t magic;  // guard for double-free detection
+    u_int32_t size;   // aligned user payload size
+    u_int32_t magic;  // guard for double-free detection
   };
 
-  static constexpr std::uint32_t kAllocMagic = 0xC0FFEE01u;
+  static constexpr u_int32_t kAllocMagic = 0xC0FFEE01u;
 
   // Utility
-  static constexpr std::size_t align_up(std::size_t x, std::size_t a) noexcept {
+  static constexpr l4_size_t align_up(l4_size_t x, l4_size_t a) noexcept {
     return (x + (a - 1)) & ~(a - 1);
   }
 
   // Node for freelist; kept in an intrusive doubly-linked list sorted by offset.
   struct Node {
-    std::size_t off = 0;  // offset from base_
-    std::size_t len = 0;  // length in bytes
+    l4_size_t off = 0;  // offset from base_
+    l4_size_t len = 0;  // length in bytes
     Node* prev = nullptr;
     Node* next = nullptr;
   };
   LocalMemoryManager(){}
   // Construction: provide the memory arena [buffer_base, buffer_base + buffer_size)
-  LocalMemoryManager(void *buffer_base, std::size_t buffer_size)
-  : base_(static_cast<std::uint8_t*>(buffer_base)), size_(buffer_size)
+  LocalMemoryManager(void *buffer_base, l4_size_t buffer_size)
+  : base_(static_cast<u_int8_t*>(buffer_base)), size_(buffer_size)
   {
     std::scoped_lock lk(mtx_);
     // Initialize node pool list
     pool_head_ = nullptr;
-    for (std::size_t i = 0; i < kMaxNodes; ++i) {
+    for (l4_size_t i = 0; i < kMaxNodes; ++i) {
       node_pool_[i].prev = nullptr;
       node_pool_[i].next = pool_head_;
       pool_head_ = &node_pool_[i];
@@ -72,14 +72,14 @@ public:
 #endif
   }
 
-  int init(void *buffer_base, std::size_t buffer_size)
+  int init(void *buffer_base, l4_size_t buffer_size)
   {
-    base_ = static_cast<std::uint8_t*>(buffer_base);
+    base_ = static_cast<u_int8_t*>(buffer_base);
     size_ = buffer_size;
     std::scoped_lock lk(mtx_);
     // Initialize node pool list
     pool_head_ = nullptr;
-    for (std::size_t i = 0; i < kMaxNodes; ++i) {
+    for (l4_size_t i = 0; i < kMaxNodes; ++i) {
       node_pool_[i].prev = nullptr;
       node_pool_[i].next = pool_head_;
       pool_head_ = &node_pool_[i];
@@ -104,7 +104,7 @@ public:
   LocalMemoryManager& operator=(LocalMemoryManager&&)      = delete;
 
   // Preferred API: allocator determines size from header on free
-  void* allocate_local(std::size_t size) {
+  void* allocate_local(l4_size_t size) {
     std::scoped_lock lk(mtx_);
     return allocate_local_locked(size);
   }
@@ -115,12 +115,12 @@ public:
   }
 /*
   // Compatibility overload: will assert the size matches header (debug) and ignore it
-  void free_local(void *addr, std::size_t caller_size) {
+  void free_local(void *addr, l4_size_t caller_size) {
     (void)caller_size;
     std::scoped_lock lk(mtx_);
 #ifndef NDEBUG
     if (addr) {
-      auto *hdr = reinterpret_cast<Header*>(static_cast<std::uint8_t*>(addr) - sizeof(Header));
+      auto *hdr = reinterpret_cast<Header*>(static_cast<u_int8_t*>(addr) - sizeof(Header));
       assert(hdr->magic == kAllocMagic && "free_local(addr, size): invalid magic (double free or bad pointer)");
       assert(hdr->size == align_up(caller_size, kAlign) && "free_local(addr, size): size mismatch");
     }
@@ -129,7 +129,7 @@ public:
   }
 */
   // Optional: expose a blocking allocate that waits until memory is freed
-  void* allocate_local_wait(std::size_t size) {
+  void* allocate_local_wait(l4_size_t size) {
     std::unique_lock<std::mutex> lk(mtx_);
     for (;;) {
       if (void* p = allocate_local_locked(size))
@@ -160,7 +160,7 @@ private:
   }
 
   // Insert [off,len] into free list (sorted) and coalesce with both neighbors
-  void insert_and_coalesce_locked(std::size_t off, std::size_t len) {
+  void insert_and_coalesce_locked(l4_size_t off, l4_size_t len) {
     assert(off + len <= size_);
 
     // Find insertion position
@@ -205,7 +205,7 @@ private:
   }
 
   // Find first-fit node with len >= need
-  Node* find_fit_locked(std::size_t need) {
+  Node* find_fit_locked(l4_size_t need) {
     for (Node* n = free_head_; n; n = n->next) {
       if (n->len >= need) return n;
     }
@@ -220,10 +220,10 @@ private:
     n->prev = n->next = nullptr;
   }
 
-  void* allocate_local_locked(std::size_t req) {
+  void* allocate_local_locked(l4_size_t req) {
     if (req == 0) return nullptr;
-    const std::size_t ua   = align_up(req, kAlign);
-    const std::size_t need = ua + sizeof(Header);
+    const l4_size_t ua   = align_up(req, kAlign);
+    const l4_size_t need = ua + sizeof(Header);
 
     Node* n = find_fit_locked(need);
     if (!n) {
@@ -233,7 +233,7 @@ private:
       return nullptr;
     }
 
-    const std::size_t off = n->off;
+    const l4_size_t off = n->off;
     if (n->len == need) {
       // exact fit: unlink and recycle node
       unlink_locked(n);
@@ -246,25 +246,25 @@ private:
 
     // write header
     auto *hdr = reinterpret_cast<Header*>(base_ + off);
-    hdr->size  = static_cast<std::uint32_t>(ua);
+    hdr->size  = static_cast<u_int32_t>(ua);
     hdr->magic = kAllocMagic;
 
 #ifndef NDEBUG
     verify_invariants_locked();
 #endif
-    return static_cast<void*>(reinterpret_cast<std::uint8_t*>(hdr) + sizeof(Header));
+    return static_cast<void*>(reinterpret_cast<u_int8_t*>(hdr) + sizeof(Header));
   }
 
   void free_local_locked(void* user) {
     if (!user) return;
-    auto *user_p = static_cast<std::uint8_t*>(user);
+    auto *user_p = static_cast<u_int8_t*>(user);
     auto *hdr = reinterpret_cast<Header*>(user_p - sizeof(Header));
 
     // Basic guard checks
     assert(hdr->magic == kAllocMagic && "free_local: invalid magic (double free or bad pointer)");
-    const std::size_t ua = hdr->size;
+    const l4_size_t ua = hdr->size;
     assert(ua == align_up(ua, kAlign) && "header size must be aligned");
-    const std::size_t off = reinterpret_cast<std::uint8_t*>(hdr) - base_;
+    const l4_size_t off = reinterpret_cast<u_int8_t*>(hdr) - base_;
     assert(off < size_ && off + ua + sizeof(Header) <= size_ && "free_local: out of range");
 
     // poison header to help catch double frees
@@ -283,7 +283,7 @@ private:
 #ifndef NDEBUG
   void verify_invariants_locked() {
     // Check free list sortedness, non-overlap, bounds, and link symmetry
-    std::size_t last_end = 0;
+    l4_size_t last_end = 0;
     Node* prev = nullptr;
     for (Node* n = free_head_; n; n = n->next) {
       assert(n->prev == prev && "prev link mismatch");
@@ -301,8 +301,8 @@ private:
   std::condition_variable cv_;
 
   // State
-  std::uint8_t *base_ = nullptr;
-  std::size_t   size_ = 0;
+  u_int8_t *base_ = nullptr;
+  l4_size_t   size_ = 0;
 
   // Free-list bookkeeping (no heap)
   Node  node_pool_[kMaxNodes]{};

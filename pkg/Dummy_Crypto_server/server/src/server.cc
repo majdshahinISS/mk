@@ -14,14 +14,18 @@ static L4Re::Util::Registry_server<> server;
   const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
   const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
+int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type, const u_int8_t * read_addr , l4_size_t size);
+void test(DataspaceEndpoint * ds);
 
-int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type, u_int8_t * read_addr , l4_size_t size)
+
+int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type, const u_int8_t * read_addr , l4_size_t size)
 {
   // run in a thread ! 
   u_int64_t ids = get_id((char*)read_addr);
+  // read_addr[0] = 'S'; // will cause an error ! ( compiletime , if workaround it it will cause runtime error)
   if(ids != id )
-    std::printf("Error id %d\n", id);
-  std::printf("handle req. id %d, read from address: %p : %s\n",id, static_cast<void*>(read_addr), read_addr);
+    std::printf("Error id %lu\n", id);
+  std::printf("handle req. id %lu, read from address: %p : %s\n",id, static_cast<const void*>(read_addr), read_addr);
   //sleep(1);
   int res = ds->free_peer_req(id,type, read_addr, size);
   return res;

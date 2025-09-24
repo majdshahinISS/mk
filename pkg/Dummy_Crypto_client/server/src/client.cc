@@ -17,10 +17,13 @@ struct WorkerArgs
   DataspaceEndpoint *ds;   // NOT owned
   u_int64_t          id;
   u_int8_t           type;
-  u_int8_t          *addr; // pointer must stay valid while worker runs
+  const u_int8_t          *addr; // pointer must stay valid while worker runs
   l4_size_t          size;
 };
 
+int new_data_callback_handler(DataspaceEndpoint *ds,
+                              u_int64_t id, u_int8_t type,
+                              const u_int8_t *addr, l4_size_t size);
 
 static int errors = 0;
 // ---- worker function (runs on detached pthread) ----
@@ -29,7 +32,7 @@ static void *handle_new_data_worker(void *opaque)
   // Take ownership of the args object to ensure it’s freed
   WorkerArgs *args = static_cast<WorkerArgs*>(opaque);
 
-  std::printf("handle req. id %d, read from address: %p : %s\n",args->id, static_cast<void*>(args->addr),args->addr);
+  std::printf("handle req. id %lu, read from address: %p : %s\n",args->id, static_cast<const void*>(args->addr),args->addr);
   //usleep(1);
   u_int64_t ids = get_id((char*)args->addr);
   if(ids != args->id)
@@ -41,11 +44,11 @@ static void *handle_new_data_worker(void *opaque)
   void * replay = args->ds->allocate_local_blocking(args->size);
   if(replay == nullptr)
   {
-    std::printf("cannot replay on req %d\n",args->id);
+    std::printf("cannot replay on req %lu\n",args->id);
   }
   else
   {
-    for(int i = 0; i < args->size; i++)
+    for(l4_size_t i = 0; i < args->size; i++)
     {
       ((char*)replay)[i] = toupper(args->addr[i]);
     }
@@ -66,7 +69,7 @@ static void *handle_new_data_worker(void *opaque)
 // ---- callback that spawns the worker and returns immediately ----
 int new_data_callback_handler(DataspaceEndpoint *ds,
                               u_int64_t id, u_int8_t type,
-                              u_int8_t *addr, l4_size_t size)
+                              const u_int8_t *addr, l4_size_t size)
 {
   // Copy all needed values into a heap envelope for the thread
   WorkerArgs *args = new WorkerArgs{ds, id, type, addr, size};

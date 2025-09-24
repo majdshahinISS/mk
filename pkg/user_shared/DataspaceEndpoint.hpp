@@ -50,7 +50,7 @@ class DataspaceEndpoint
     void * peer_addr = nullptr;
     std::atomic<bool> peer_is_ready{false};
 
-    std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, u_int8_t *, l4_size_t size)> new_req_callback_handler;
+    std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, const u_int8_t *, l4_size_t size)> new_req_callback_handler;
   
     static void * server_intf_getter(void * args)
     {
@@ -122,7 +122,7 @@ class DataspaceEndpoint
     {
       WorkerArgs * p = (WorkerArgs*) arg;
 
-      std::printf("dummy free_peer_req_callback , id: %lu, on local address %p\n", p->id, p->addr);
+      std::printf("free_peer_req_callback , id: %lu, type %d, on local address %p\n", p->id,p->type, p->addr);
 
       p->ds->lmm.free_local((void* )p->addr);
       delete p;
@@ -169,7 +169,7 @@ class DataspaceEndpoint
     const char *STC_ipc_name,
     l4_size_t   peer_size,
     u_int64_t    peer_timeout,
-    std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, u_int8_t * addr, l4_size_t size)> new_req_callback_handler_= nullptr
+    std::function<int(DataspaceEndpoint* obj,u_int64_t id ,u_int8_t type, const u_int8_t * addr, l4_size_t size)> new_req_callback_handler_= nullptr
   ): 
       local_dataspaceOwner(server, CTS_ipc_name),
       peer_size(peer_size), 
@@ -256,7 +256,7 @@ public:
     return rc;
   }
 
-  int free_peer_req(u_int64_t id ,u_int8_t type, void * addr, l4_size_t size)
+  int free_peer_req(u_int64_t id ,u_int8_t type, const void * addr, l4_size_t size)
   {
     std::printf("free_peer_req, id: %lu\n",id);
     if(peer_is_ready.load() == false)
