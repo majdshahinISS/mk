@@ -17,7 +17,7 @@ struct WorkerArgs
   DataspaceEndpoint *ds;   // NOT owned
   u_int64_t          id;
   u_int8_t           type;
-  const u_int8_t          *addr; // pointer must stay valid while worker runs
+  const u_int8_t     *addr; // pointer must stay valid while worker runs
   l4_size_t          size;
 };
 

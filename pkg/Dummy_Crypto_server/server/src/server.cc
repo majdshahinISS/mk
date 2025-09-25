@@ -7,12 +7,12 @@
 // #include <pthread-l4.h>
 
 #include "DataspaceEndpoint.hpp"
-#include "LocalMemoryManager.hpp"
+//#include "LocalMemoryManager.hpp"
 #include "helperFunctions.hpp"
 
 static L4Re::Util::Registry_server<> server;
-  const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
-  const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
+const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
+const char *STC_ipc_name = "STC_ipc"; // name must be 11 characters long maximum
 
 int new_data_callback_handler(DataspaceEndpoint * ds,u_int64_t id, u_int8_t type, const u_int8_t * read_addr , l4_size_t size);
 void test(DataspaceEndpoint * ds);
@@ -36,10 +36,7 @@ static void * worker(void * arg)
 {
   sleep(1);
   DataspaceEndpoint * ds = (DataspaceEndpoint *) arg;
-  while (ds->all_is_ready.load() == false)
-  {
-    usleep(1000);
-  }
+  ds->wait_for_initialization();
   std::printf("Dataspace endpoint is ready now!\n");
 
   void * addr = nullptr;
@@ -98,6 +95,7 @@ main()
     1000, 
     new_data_callback_handler
   );
+  
   test(&obj);
   // Wait for client requests
   server.loop();
