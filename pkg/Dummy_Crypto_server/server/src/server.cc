@@ -34,9 +34,8 @@ static pthread_t th;
 
 static void * worker(void * arg)
 {
-  sleep(1);
   DataspaceEndpoint * ds = (DataspaceEndpoint *) arg;
-  ds->wait_for_initialization();
+  ds->wait_for_initialization(0);
   std::printf("Dataspace endpoint is ready now!\n");
 
   void * addr = nullptr;

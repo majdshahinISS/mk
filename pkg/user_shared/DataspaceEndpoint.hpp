@@ -293,13 +293,24 @@ public:
     return rc;
   }
 
-  void wait_for_initialization()
+  bool wait_for_initialization(int timeout)
   {
     assert(!pthread_equal(pthread_self(), g_main_tid) && "wait_for_initialization must not run on the main thread");
+
+    int i = 0;
     while(all_is_ready.load()== false)
     {
       usleep(1000);
+      if(timeout != 0)
+      {
+        i++;
+        if (i >= timeout) 
+        {
+          return false;
+        }
+      }
     }
+    return true;
   }
 
 };
