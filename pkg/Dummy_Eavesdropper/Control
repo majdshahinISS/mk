@@ -1,2 +1,2 @@
-requires: stdlibs libio-io libstdc++ cxx_libc_io cxx_io
+requires: stdlibs libio-io libstdc++ cxx_libc_io cxx_io l4re l4re-util
 Maintainer: majd.shahin@iss-ag.com
