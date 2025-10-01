@@ -13,10 +13,27 @@ static inline l4_umword_t zmp_fid(unsigned pm_api_id)
 
 int main()
 {
+    // Build the SMCCC cap from the base selector
+  auto smc_from_base = L4::cap_cast<L4::Arm_smccc>(L4::Cap<void>(L4_BASE_ARM_SMCCC_CAP));
+  if (!smc_from_base.is_valid()) {
+    printf("SMCCC base cap not present. Recheck ARM_SMC_USER in kernel config.\n");
+    return 1;
+  }
+  else 
+  {
+    printf("smc_from_base cap presents ok \n");
+  }
+
+
+
   auto smc = L4Re::Env::env()->get_cap<L4::Arm_smccc>("smc");
   if (!smc.is_valid()) {
-    printf("SMC cap 'smc' invalid. Pass it via .cfg: caps = { smc = L4.Env.arm_smccc }\n");
+    printf("SMC cap 'smc' invalid. Pass it via .cfg: caps = { smc = L4.Env.arm_smc }\n");
     return 1;
+  }
+  else 
+  {
+    printf("cap presents ok\n");
   }
 
   l4_umword_t out[4] = {~0ul, 0, 0, 0};
