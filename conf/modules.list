@@ -212,3 +212,4 @@ module syscallbench_parallel
 module ned/ipcbench/ipcbench.cfg
 
 include /home/iss/L4Re_d/MS_L4Re/modules.list
+include /home/iss/rust-l4re-toolchain/MS/modules.list
