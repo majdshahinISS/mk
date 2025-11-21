@@ -1,2 +1,2 @@
-requires: stdlibs
-Maintainer: adam@os.inf.tu-dresden.de
+requires: stdlibs libstdc++
+Maintainer: majd.shahin@iss-ag.com

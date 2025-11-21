@@ -1,6 +1,4 @@
-#include <l4/re/env>
-#include <l4/re/log>
-#include <l4/sys/cxx/ipc_epiface>
+#include "../include/log_wrapper.h"
 
 // C interface for L4Re::Log
 extern "C" {
