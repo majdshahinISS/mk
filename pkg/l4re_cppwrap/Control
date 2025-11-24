@@ -1,2 +1,2 @@
-requires: stdlibs libstdc++
+requires: libio-io
 Maintainer: majd.shahin@iss-ag.com
