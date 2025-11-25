@@ -7,9 +7,9 @@ extern "C" {
 
  //struct RegistryServerOpaque;   // forward declare if needed
 
-void *l4re_get_registry_server();
+void *Registry_Server_get();
 
-void registry_server_loop();
+void Registry_Server_loop();
 
 
 #ifdef __cplusplus
