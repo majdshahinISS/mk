@@ -1,40 +1,32 @@
+#include <l4/sys/types.h>    // For time_t, suseconds_t
+#include <sys/stat.h>        // For stat64
+#include <sys/time.h>        // For suseconds_t
+#include <sys/statvfs.h>     // For fsblkcnt64_t, fsfilcnt64_t
+#include <cwchar>            // For wchar_t
 #include <iostream>
-#include <stdio.h>
-#include <unistd.h>
-#include <cstdio>
-#include <cstring>
-// #include <l4/sys/capability>  // for capability management
-// #include <l4/re/console>
-// #include <l4/re/env>
-// #include <l4/re/log>
-// #include <l4/re/dataspace>
-//#include <l4/re/vcon>
-// #include <l4/re/util/cap_alloc>
-
-#include "Test.h"
-#include "Tests.h"
-
-
-Test mytests[] = {
-    // Test("log_test", test_log),
-    // Test("thread_test", test_pthread),
-    // Test("l4_thread_test", test_l4_thread_ipc_1),
-    // Test("dummy_test", test_dummy),
-    Test("memory_allocation_free_test", test_memory_allocation_free),
-};
-
 
 int main()
 {
-    std::cout << "myapp2: Hello World! , using main function" << std::endl;
+    std::cout << "Size of types on this system:\n";
     
-    // Run the tests
-    for (const auto& test : mytests) {
-        test.run();
-        std::cout << "______________________________"<<std::endl;
-    }
-    // Print the results
-    std::cout << "All tests completed." << std::endl;
-    std::cout << "______________________________"<<std::endl;
+    // Previous types
+    std::cout << "blkcnt_t: " << sizeof(blkcnt_t) << " bytes\n";
+    std::cout << "blksize_t: " << sizeof(blksize_t) << " bytes\n";
+    std::cout << "clock_t: " << sizeof(clock_t) << " bytes\n";
+    std::cout << "fsblkcnt_t: " << sizeof(fsblkcnt_t) << " bytes\n";
+    std::cout << "fsfilcnt_t: " << sizeof(fsfilcnt_t) << " bytes\n";
+    // std::cout << "fsword_t: " << sizeof(__fsword_t) << " bytes\n";
+    std::cout << "ino_t: " << sizeof(ino_t) << " bytes\n";
+    std::cout << "nlink_t: " << sizeof(nlink_t) << " bytes\n";
+    std::cout << "off_t: " << sizeof(off_t) << " bytes\n";
+    
+    // New types
+    std::cout << "stat64: " << sizeof(struct stat64) << " bytes\n";
+    std::cout << "suseconds_t: " << sizeof(suseconds_t) << " bytes\n";
+    std::cout << "time_t: " << sizeof(time_t) << " bytes\n";
+    std::cout << "wchar_t: " << sizeof(wchar_t) << " bytes\n";
+    std::cout << "fsblkcnt64_t: " << sizeof(fsblkcnt64_t) << " bytes\n";
+    std::cout << "fsfilcnt64_t: " << sizeof(fsfilcnt64_t) << " bytes\n";
+    std::cout << "__WORDSIZE: " << __WORDSIZE<< "\n";
     return 0;
 }
