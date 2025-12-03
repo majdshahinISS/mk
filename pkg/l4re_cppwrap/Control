@@ -1,2 +1,2 @@
-requires: libio-io libio
+requires: libio-io libio libstdc++ cxx_libc_io cxx_io
 Maintainer: majd.shahin@iss-ag.com
