@@ -51,7 +51,6 @@
 #ifndef XEMACPS_BDRING_H	/* prevent curcular inclusions */
 #define XEMACPS_BDRING_H	/* by using protection macros */
 #include "xstatus.h"
-// #include "types.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

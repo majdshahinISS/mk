@@ -12,10 +12,12 @@ SRC_CC = 	src/dummy_class.cc \
 			net_dev_src/xemacpsif.cc	\
 			net_dev_src/dumputility.cc	\
 			net_dev_src/dmamem.cc		\
-			src/xemacpsif_wrapper.cc
+			src/xemacpsif_wrapper.cc	
 
 			#net_dev_src/xemacpsif.cc
-SRC_C	=	net_dev_src/xemacps_bdring.c		
+SRC_C	=	net_dev_src/xemacps_bdring.c	\
+			net_dev_src/Xil_Assert.c	
+			
 # in archive
 #	src/log_wrapper.cc include/log_wrapper.h
 #	src/MS_Types.cc include/MS_Types.h	
@@ -31,7 +33,8 @@ HDRS   = 	include/dummy_class.h \
 			net_dev_src/xemacpsif.h	\
 			net_dev_src/dumputility.h	\
 			net_dev_src/dmamem.h		\
-			include/xemacpsif_wrapper.h
+			include/xemacpsif_wrapper.h \
+			net_dev_src/Xil_Assert.h
 
 
 			#net_dev_src/xemacpsif.h

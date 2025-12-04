@@ -11,7 +11,7 @@
 #include <iostream>
 #include <unistd.h>
 #include "/media/iss/Arbeit/Vitis_install/2025.1/data/embeddedsw/ThirdParty/sw_services/lwip220_v1_2/src/lwip-2.2.0/contrib/ports/xilinx/netif/xemac_ieee_reg.h"
-
+#include "Xil_Assert.h"
 DevEmacPs::DevEmacPs():IORegion("EmacPs"),
 isStarted_(0), isReady_(0),
     _icu(l4io_request_icu()),// ICU bekommen (virtueller interrupt controller) 

@@ -26,6 +26,20 @@
 #include "dumputility.h"
 #include "dmamem.h"
 #include "xemacpsif.h"
+#include "../include/registry_server_wrap.h"
+#include "Xil_Assert.h"
+
+
+void EmacPsUtilErrorTrap(const char *Message)
+{
+	static uint32_t Count = 0;
+
+	Count++;
+
+	printf("%s\r\n", Message);
+
+}
+
 // #include "nx_packet_pool.h"
 // NX_PACKET_POOL packetpool; // REVIEW
 static constexpr size_t RxBufSize = XEMACPSIF_MAX_FRAME_SIZE * RXBD_CNT;
@@ -54,7 +68,6 @@ const uint32_t TXBD_CNT = 32;	/* Number of TxBDs to use */
 #error __aarch64__ is not defined
 #endif
 
-extern L4Re::Util::Registry_server<> server;
 
 Xemacpsif::~Xemacpsif() {
     magic_ = 0;
@@ -132,7 +145,8 @@ int Xemacpsif::allocResourcesFromIo()
 	    std::cout << "IRQ: " << irqnum << std::endl;
 
 	    L4::Cap < L4::Irq > l4irq;
-	    L4Re::chkcap(l4irq = server.registry()->register_irq_obj(&etherdev));
+        L4Re::Util::Registry_server<> *server = (L4Re::Util::Registry_server<> *) Registry_Server_get();
+	    L4Re::chkcap(l4irq =  server->registry()->register_irq_obj(&etherdev));
         L4_irq_mode irq_mode = L4_irq_mode(res.flags);
 	    etherdev.set_irq(irqnum, l4irq,irq_mode);
       }
@@ -316,14 +330,14 @@ LONG Xemacpsif::createRXRing()
 				  XEMACPS_BD_ALIGNMENT, RXBD_CNT);
     if (Status != XST_SUCCESS)
     {
-      // EmacPsUtilErrorTrap("Error setting up RxBD space, BdRingCreate"); // REVIEW
+      EmacPsUtilErrorTrap("Error setting up RxBD space, BdRingCreate");
       return XST_FAILURE;
     }
 
     Status = XEmacPs_BdRingClone(&(etherdev.RxBdRing), &BdTemplate, XEMACPS_RECV);
     if (Status != XST_SUCCESS)
     {
-      // EmacPsUtilErrorTrap("Error setting up RxBD space, BdRingClone"); // REVIEW
+      EmacPsUtilErrorTrap("Error setting up RxBD space, BdRingClone");
       return XST_FAILURE;
     }
     return XST_SUCCESS;
@@ -353,13 +367,13 @@ LONG Xemacpsif::createTXRing()
 				  XEMACPS_BD_ALIGNMENT, TXBD_CNT);
     if (Status != XST_SUCCESS)
     {
-      // EmacPsUtilErrorTrap("Error setting up TxBD space, BdRingCreate");  // REVIEW
+      EmacPsUtilErrorTrap("Error setting up TxBD space, BdRingCreate");
       return XST_FAILURE;
     }
     Status = XEmacPs_BdRingClone(&(etherdev.TxBdRing), &BdTemplate, XEMACPS_SEND);
     if (Status != XST_SUCCESS)
     {
-      // EmacPsUtilErrorTrap("Error setting up TxBD space, BdRingClone");  // REVIEW
+      EmacPsUtilErrorTrap("Error setting up TxBD space, BdRingClone");
       return XST_FAILURE;
     }
     return XST_SUCCESS;
@@ -415,8 +429,9 @@ void Xemacpsif::initNormal()
     etherdev.SetOperatingSpeed(link_speed);           // xemacs_hw.cc:152
     /* Setting the operating speed of the MAC needs a delay. */
 	{
-		volatile uint32_t wait;
-		for (wait=0; wait < 20000; wait++);// TODO: delay_us(20);
+		//volatile uint32_t wait;
+		//for (wait=0; wait < 20000; wait++);// TODO
+		usleep(20000);
 	}
 }
 
@@ -486,9 +501,15 @@ int Xemacpsif::prepareReceive() // REVIEW !!!
         // Associate BD with this buffer
         XEmacPs_BdSetAddressRx(rxbd, phys_buf);
 
+        printf("XEmacPs_BdSetAddressRx(rxbd=%p, Physaddr=%p)\r\n",
+               (void *)rxbd, (void *)phys_buf);
+        
         // BD is empty -> clear status
         XEmacPs_BdClearRxNew(rxbd);
+        printf("XEmacPs_BdClearRxNew(rxbd=%p)\r\n", (void *)rxbd);
+
         XEmacPs_BdSetStatus(rxbd, 0);
+        printf("XEmacPs_BdSetStatus(rxbd=%p, 0)\r\n", (void *)rxbd);
 
         // Mark our software frame structure as empty
         rx_frames_[bdindex].len = 0;
@@ -497,24 +518,33 @@ int Xemacpsif::prepareReceive() // REVIEW !!!
         if (bdindex == RXBD_CNT - 1)
         {
             XEmacPs_BdSetRxWrap(rxbd);
+            printf("XEmacPs_BdSetRxWrap(rxbd=%p)\r\n", (void *)rxbd);
         }
         // Clean cache for the RX DMA buffer
-        l4_cache_flush_data((unsigned long)phys_buf,
+        printf("Cache flush for RX buffer: phys_buf %p\r\n", (void *)phys_buf);
+        l4_cache_flush_data((unsigned long)phys_buf,    
                             (unsigned long)phys_buf + XEMACPSIF_MAX_FRAME_SIZE);
+        printf("l4_cache_flush_data(phys_buf=%p, phys_buf+%u)\r\n",
+               (void *)phys_buf, XEMACPSIF_MAX_FRAME_SIZE);
+        
         // Cache flush for BD descriptor itself
         l4_cache_flush_data((unsigned long)rxbd,
                             (unsigned long)rxbd + 64);
+        printf("l4_cache_flush_data(rxbd=%p, rxbd+64)\r\n", (void *)rxbd);
 
         // Commit BD to HW
         status = XEmacPs_BdRingToHw(&(etherdev.RxBdRing), 1, rxbd);
+        printf("XEmacPs_BdRingToHw status=%d\r\n", status);
+
         if (status != XST_SUCCESS)
         {
             //EmacPsUtilErrorTrap("Error committing RxBD to HW");
             XEmacPs_BdRingUnAlloc(&(etherdev.RxBdRing), 1, rxbd);
+            EmacPsUtilErrorTrap("Error committing RxBD to HW");
             return XST_FAILURE;
         }
     }
-
+    printf("prepareReceive: done\r\n");
     return 0;
 }
 
@@ -760,11 +790,11 @@ void Xemacpsif::notifyError(uint8_t, uint32_t)
 uint32_t Xemacpsif::detect_phy()
 {
     uint32_t phyfoundforemac0 = FALSE;
-	  uint32_t phyfoundforemac1 = FALSE;
+	uint32_t phyfoundforemac1 = FALSE;
     uint32_t phyaddrforemac=0;
     uint32_t link_speed = XST_FAILURE;
     uint32_t phy_addr = 0;
-	  uint32_t emacnum = 0;
+	uint32_t emacnum = 0;
     for(phy_addr=0; phy_addr < 32; phy_addr++)
     {
        phymapemac0[phy_addr]=0;
@@ -833,7 +863,7 @@ uint32_t Xemacpsif::detect_phy()
     {
 		eth_link_status_ = ETH_LINK_UP;
 	}
-  (void) phyaddrforemac;
+  	(void) phyaddrforemac;
     return link_speed;
 }
 
