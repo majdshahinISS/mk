@@ -403,7 +403,8 @@ void Xemacpsif::setPriorityBuffers()
     printf("\tSetTXQbase BdTxTerminatePtrPhys=%p\r\n",BdTxTerminatePtrPhys);
     etherdev.SetTXQbase((UINTPTR) BdTxTerminatePtrPhys);
 
-    l4_cache_flush_data((unsigned long)BdTxTerminatePtrVirt, (unsigned long)BdTxTerminatePtrVirt+64);
+    // Flush BD (terminate descriptor) so hardware sees it (uses virtual address)
+    l4_cache_flush_data((unsigned long)BdTxTerminatePtrVirt, (unsigned long)BdTxTerminatePtrVirt+sizeof(XEmacPs_Bd));
 
 }
 
@@ -490,15 +491,16 @@ int Xemacpsif::prepareReceive() // REVIEW !!!
         // Determine BD index in ring
         uint32_t bdindex = XEMACPS_BD_TO_INDEX(&(etherdev.RxBdRing), rxbd);
 
-        // Compute physical RX buffer address
-        // NOTE: You must ensure RxDataBufPhys is allocated earlier!
+        // Compute virtual and physical RX buffer addresses
+        // NOTE: You must ensure RxDataBufVirt and RxDataBufPhys are allocated earlier!
+        uint8_t *virt_buf = RxDataBufVirt + bdindex * XEMACPSIF_MAX_FRAME_SIZE;
         UINTPTR phys_buf = (UINTPTR)(RxDataBufPhys + 
                                      bdindex * XEMACPSIF_MAX_FRAME_SIZE);
 
-        printf("BD[%u] -> phys RX buffer @ %p\n",
-               bdindex, (void *)phys_buf);
+        printf("BD[%u] -> virt RX buffer @ %p, phys @ %p\n",
+               bdindex, (void *)virt_buf, (void *)phys_buf);
 
-        // Associate BD with this buffer
+        // Associate BD with this buffer (hardware uses physical address)
         XEmacPs_BdSetAddressRx(rxbd, phys_buf);
 
         printf("XEmacPs_BdSetAddressRx(rxbd=%p, Physaddr=%p)\r\n",
@@ -520,21 +522,24 @@ int Xemacpsif::prepareReceive() // REVIEW !!!
             XEmacPs_BdSetRxWrap(rxbd);
             printf("XEmacPs_BdSetRxWrap(rxbd=%p)\r\n", (void *)rxbd);
         }
-        // Clean cache for the RX DMA buffer
-        printf("Cache flush for RX buffer: phys_buf %p\r\n", (void *)phys_buf);
-        l4_cache_flush_data((unsigned long)phys_buf,    
-                            (unsigned long)phys_buf + XEMACPSIF_MAX_FRAME_SIZE);
-        printf("l4_cache_flush_data(phys_buf=%p, phys_buf+%u)\r\n",
-               (void *)phys_buf, XEMACPSIF_MAX_FRAME_SIZE);
+        // Cache flush for the RX DMA buffer
+        // IMPORTANT: l4_cache_flush_data() requires VIRTUAL address (CPU perspective)
+        // Only the physical address is used when programming the BD
+        //printf("Cache flush for RX buffer: virt_buf %p (size %zu)\r\n", (void *)virt_buf, XEMACPSIF_MAX_FRAME_SIZE);
+        l4_cache_flush_data((unsigned long)virt_buf,    
+                            (unsigned long)virt_buf + XEMACPSIF_MAX_FRAME_SIZE);
+        // printf("l4_cache_flush_data(virt_buf=%p, virt_buf+%zu)\r\n",
+        //        (void *)virt_buf, XEMACPSIF_MAX_FRAME_SIZE);
         
-        // Cache flush for BD descriptor itself
+        // Cache flush for BD descriptor itself (also uses virtual address)
         l4_cache_flush_data((unsigned long)rxbd,
-                            (unsigned long)rxbd + 64);
-        printf("l4_cache_flush_data(rxbd=%p, rxbd+64)\r\n", (void *)rxbd);
+                            (unsigned long)rxbd + sizeof(XEmacPs_Bd));
+        // printf("l4_cache_flush_data(BD virt=%p, size=%zu)\r\n", 
+        //        (void *)rxbd, sizeof(XEmacPs_Bd));
 
         // Commit BD to HW
         status = XEmacPs_BdRingToHw(&(etherdev.RxBdRing), 1, rxbd);
-        printf("XEmacPs_BdRingToHw status=%d\r\n", status);
+        // printf("XEmacPs_BdRingToHw status=%ld\r\n", status);
 
         if (status != XST_SUCCESS)
         {
@@ -600,7 +605,8 @@ int Xemacpsif::send(const uint8_t *data, uint32_t len)
     // Copy frame into DMA buffer
     memcpy(virt_buf, data, len);
 
-    // Flush cache for TX buffer so DMA sees correct data
+    // Flush cache for TX buffer so DMA sees correct data (uses virtual address)
+    // This ensures the DMA engine sees our newly written frame data
     l4_cache_flush_data((unsigned long)virt_buf,
                         (unsigned long)virt_buf + len);
 
@@ -623,7 +629,8 @@ int Xemacpsif::send(const uint8_t *data, uint32_t len)
                           0);
     std::cout << std::endl;
 
-    // Flush BD itself
+    // Flush BD itself (also uses virtual address)
+    // This ensures the DMA engine sees our updated descriptor
     l4_cache_flush_data((unsigned long)Bd1Ptr,
                         (unsigned long)Bd1Ptr + sizeof(XEmacPs_Bd));
 
@@ -727,7 +734,8 @@ void Xemacpsif::notifyReceive() // REVIEW
             // UINTPTR phys_buf = (UINTPTR)(RxDataBufPhys + bdindex * XEMACPSIF_MAX_FRAME_SIZE);
             // (phys not needed here except for debugging)
 
-            // Invalidate cache BEFORE reading DMA buffer
+            // Invalidate cache BEFORE reading DMA buffer (uses virtual address)
+            // This ensures we read fresh data from main memory that the DMA wrote
             l4_cache_flush_data((unsigned long)virt_buf,
                                      (unsigned long)virt_buf + XEMACPSIF_MAX_FRAME_SIZE);
 
