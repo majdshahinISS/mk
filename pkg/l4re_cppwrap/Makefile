@@ -26,6 +26,7 @@ HDRS   = 	include/dummy_class.h \
 			include/registry_server_wrap.h \
 			include/GPIO_wrapper.h \
 			include/Interrupt_wrapper.h \
+			include/tlog.h \
 			net_dev_src/CRLARB.h		\
 			net_dev_src/IORegion.h		\
 			net_dev_src/xemacps_bdring.h\

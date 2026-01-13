@@ -1,6 +1,6 @@
 #include "../include/xemacpsif_wrapper.h"
 #include "../net_dev_src/xemacpsif.h"
-
+#include "tlog.h"
 
 #include <iostream>
 
@@ -41,7 +41,7 @@ static bool xemacpsif_new_(void **obj)
     }
 
     *obj = static_cast<void *>(instance);
-    std::cout << "Xemacpsif instance created " << instance << std::endl;
+    tlog(LOG_Xemacpsif_Wrapper, "Xemacpsif instance created %p", instance);
     return true;
 }
 
@@ -52,7 +52,7 @@ static bool xemacpsif_delete_(void **obj)
     }
     Xemacpsif *instance = static_cast<Xemacpsif *>(*obj);
 
-    std::cout << "Deleting Xemacpsif instance " << instance << std::endl;
+    tlog(LOG_Xemacpsif_Wrapper, "Deleting Xemacpsif instance %p", instance);
 
     delete instance;
     *obj = nullptr;
@@ -141,24 +141,33 @@ static bool xemacpsif_stop_device_(void *obj)
 
 static bool xemacpsif_receive_(void *obj, void **frame_out)
 {
+    tlog(LOG_Xemacpsif_Wrapper, "Entering xemacpsif_receive_()");
+    
     if (!check_xemacpsif_object(obj, __FUNCTION__, frame_out == nullptr)) {
+        tlog(LOG_Xemacpsif_Wrapper, "Object check failed");
         return false;
     }
 
+    tlog(LOG_Xemacpsif_Wrapper, "Object check passed");
     Xemacpsif *instance = static_cast<Xemacpsif *>(obj);
 
+    tlog(LOG_Xemacpsif_Wrapper, "Calling instance->receive()");
     EmacRawFrame *frame = nullptr;
     try {
         frame = instance->receive();
     } catch (...) {
+        tlog(LOG_Xemacpsif_Wrapper, "Exception caught during receive()");
         return false;
     }
 
+    tlog(LOG_Xemacpsif_Wrapper, "receive() returned, frame pointer: %p", (void*)frame);
     if (!frame) {
+        tlog(LOG_Xemacpsif_Wrapper, "No frame available, returning false");
         *frame_out = nullptr;
         return false; // no frame available
     }
 
+    tlog(LOG_Xemacpsif_Wrapper, "Frame received, returning true, frame size: %u bytes", frame->len);
     *frame_out = static_cast<void *>(frame);
     return true;
 }
