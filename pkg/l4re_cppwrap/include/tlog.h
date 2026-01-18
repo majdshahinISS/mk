@@ -25,7 +25,7 @@ extern "C" {
 // ============================================================================
 
 // Define tags you want to enable:
-#define LOG_ENABLE_ALL
+//#define LOG_ENABLE_ALL
 
 
 #define LOG                     1
@@ -38,6 +38,7 @@ extern "C" {
 #define LOG_Xemacpsif_Receive   1
 #define LOG_Xemacpsif_Send      1
 #define LOG_Xemacpsif_Wrapper   1
+#define LOG_Xemacpsif_INTER     1
 // ============================================================================
 // LOGGING IMPLEMENTATION
 // ============================================================================

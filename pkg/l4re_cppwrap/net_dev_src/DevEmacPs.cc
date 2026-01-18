@@ -2274,7 +2274,7 @@ void DevEmacPs::handle_irq()
 
   Xil_AssertVoid(isReady_ == (uint32_t) XIL_COMPONENT_IS_READY);
 
-  printf("INT-C++\r\n");
+  tlog(LOG_Xemacpsif_INTER, "INT-C++\r\n");
   /* This ISR will try to handle as many interrupts as it can in a single
    * call. However, in most of the places where the user's error handler
    * is called, this ISR exits because it is expected that the user will

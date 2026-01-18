@@ -16,7 +16,7 @@
 #include "xemacps_bd.h"
 #include "xemacps_bdring.h"
 #include "ethernet.h"
-
+#include "tlog.h"
 // aus BSP xparameter.h
 #define XPAR_PSU_ETHERNET_3_IS_CACHE_COHERENT 0
 /* Canonical definitions for peripheral PSU_ETHERNET_3 */
@@ -193,7 +193,10 @@ public:
 	*     void XEmacPs_IntEnable(XEmacPs *InstancePtr, u32 Mask)
 	*
 	*****************************************************************************/
-  void intenable(uint32_t mask) { printf("intenable(%x)\n",mask); Out32(XEMACPS_IER_OFFSET, ((mask) & XEMACPS_IXR_ALL_MASK)); }
+  void intenable(uint32_t mask) { 
+    tlog(LOG_Xemacpsif_INTER, "intenable(%x)\n",mask); 
+    Out32(XEMACPS_IER_OFFSET, ((mask) & XEMACPS_IXR_ALL_MASK));
+   }
 
 	/**
 	*
@@ -206,7 +209,10 @@ public:
 	* @note
 	* The state of the transmitter and receiver are not modified by this function.
 	*****************************************************************************/
-  void intdisable(uint32_t mask) { printf("intdisable(%x)\n",mask); Out32(XEMACPS_IDR_OFFSET, mask & XEMACPS_IXR_ALL_MASK); }
+  void intdisable(uint32_t mask) { 
+    tlog(LOG_Xemacpsif_INTER, "intdisable(%x)\n",mask); 
+    Out32(XEMACPS_IDR_OFFSET, mask & XEMACPS_IXR_ALL_MASK); 
+  }
 	/**
 	*
 	* Enable interrupts specified in <i>Mask</i>. The corresponding interrupt for
@@ -219,7 +225,10 @@ public:
 	* @note
 	* The state of the transmitter and receiver are not modified by this function.
 	*****************************************************************************/
-  void intQ1Enable(uint32_t Mask) { printf("intQ1Enable(%x)\n",Mask); Out32(XEMACPS_INTQ1_IER_OFFSET, ((Mask) & XEMACPS_INTQ1_IXR_ALL_MASK)); }
+  void intQ1Enable(uint32_t Mask) { 
+    tlog(LOG_Xemacpsif_INTER, "intQ1Enable(%x)\n",Mask); 
+    Out32(XEMACPS_INTQ1_IER_OFFSET, ((Mask) & XEMACPS_INTQ1_IXR_ALL_MASK)); 
+  }
 	/**
 	*
 	* Enable interrupts specified in <i>Mask</i>. The corresponding interrupt for
@@ -232,7 +241,10 @@ public:
 	* @note
 	* The state of the transmitter and receiver are not modified by this function.
 	*****************************************************************************/
-  void intQ1Disable(uint32_t mask) { printf("intQ1Disable(%x)\n",mask); Out32(XEMACPS_INTQ1_IER_OFFSET, mask & XEMACPS_INTQ1_IXR_ALL_MASK); }
+  void intQ1Disable(uint32_t mask) { 
+    tlog(LOG_Xemacpsif_INTER, "intQ1Disable(%x)\n",mask); 
+    Out32(XEMACPS_INTQ1_IER_OFFSET, mask & XEMACPS_INTQ1_IXR_ALL_MASK); 
+  }
 
   void StartDevice();
   /* Stop the device and reset hardware */

@@ -662,7 +662,7 @@ int Xemacpsif::send(const uint8_t *data, uint32_t len)
     XEmacPs_BdClearTxUsed(Bd1Ptr);
     XEmacPs_BdSetLast(Bd1Ptr);
 
-    #if defined(LOG_Xemacpsif_Send)
+    #if defined(LOG_ENABLE_ALL) && LOG_Xemacpsif_Send == 1
     std::cout << "Bd1Ptr before ToHw = ";
     Dumputility::dump_hex(std::cout,
                           (octet_t *)Bd1Ptr,
@@ -695,7 +695,7 @@ int Xemacpsif::send(const uint8_t *data, uint32_t len)
      */
     pthread_cond_wait(&signalsendfinished_, &mutex_);
 
-    #if defined(LOG_Xemacpsif_Send)
+    #if defined(LOG_ENABLE_ALL) && LOG_Xemacpsif_Send == 1
     std::cout << "Bd1Ptr after transmit = ";
     Dumputility::dump_hex(std::cout,
                           (octet_t *)Bd1Ptr,
@@ -715,7 +715,7 @@ int Xemacpsif::send(const uint8_t *data, uint32_t len)
         return XST_FAILURE;
     }
 
-    #if defined(LOG_Xemacpsif_Send)
+    #if defined(LOG_ENABLE_ALL) && LOG_Xemacpsif_Send == 1
     std::cout << "Bd1Ptr after FromHw = ";
     Dumputility::dump_hex(std::cout,
                           (octet_t *)Bd1Ptr,

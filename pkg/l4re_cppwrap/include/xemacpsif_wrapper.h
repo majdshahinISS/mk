@@ -32,8 +32,9 @@ bool xemacpsif_release_frame(void *obj, void *frame);
 bool xemacpsif_send(void *obj, const uint8_t *data, uint32_t len);
 
 // Observer callbacks (usually NOT called from Rust; exposed for completeness)
-void xemacpsif_notify_send(void *obj);
-void xemacpsif_notify_receive(void *obj);
+void xemacpsif_notify_send(void *obj);// TODO remove : it must be called from interrupt handler DevEmacPs::handle_irq() automaticaly
+void xemacpsif_notify_receive(void *obj);// TODO remove : it must be called from interrupt handler DevEmacPs::handle_irq() automaticaly
+// TODO remove : it must be called from interrupt handler DevEmacPs::handle_irq() automaticaly
 void xemacpsif_notify_error(void *obj, uint8_t direction, uint32_t errorword);
 
 #ifdef __cplusplus
