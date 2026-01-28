@@ -43,8 +43,5 @@ HDRS   = 	include/dummy_class.h \
 
 # intern : EVBuffer.h xemacps_hw.h xemacps_bd.h ethernet.h 
 
-CFLAGS += -I$(PKGDIR)/include -I/media/iss/Arbeit/Vitis_install/2025.1/data/embeddedsw/lib/bsp/standalone_v9_3/src/common
-CPPFLAGS += -I$(PKGDIR)/include -I/media/iss/Arbeit/Vitis_install/2025.1/data/embeddedsw/lib/bsp/standalone_v9_3/src/common
-
 REQUIRES_LIBS = libio-io libio libstdc++ cxx_libc_io cxx_io libpthread# libstdc++ cxx_libc_io cxx_io libsupc++
 include $(L4DIR)/mk/lib.mk

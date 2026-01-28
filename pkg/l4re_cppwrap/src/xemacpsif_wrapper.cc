@@ -1,6 +1,6 @@
 #include "../include/xemacpsif_wrapper.h"
 #include "../net_dev_src/xemacpsif.h"
-#include "tlog.h"
+#include "../include/tlog.h"
 
 #include <iostream>
 

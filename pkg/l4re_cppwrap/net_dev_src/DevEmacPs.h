@@ -16,7 +16,7 @@
 #include "xemacps_bd.h"
 #include "xemacps_bdring.h"
 #include "ethernet.h"
-#include "tlog.h"
+#include "../include/tlog.h"
 // aus BSP xparameter.h
 #define XPAR_PSU_ETHERNET_3_IS_CACHE_COHERENT 0
 /* Canonical definitions for peripheral PSU_ETHERNET_3 */
