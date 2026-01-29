@@ -6,9 +6,9 @@
 #include <random>
 // #include <pthread-l4.h>
 
-#include "DataspaceEndpoint.hpp"
+#include "DataspaceEndpoint.h"
 //#include "LocalMemoryManager.hpp"
-#include "helperFunctions.hpp"
+#include "helperFunctions.h"
 
 static L4Re::Util::Registry_server<> server;
 const char *CTS_ipc_name = "CTS_ipc"; // name must be 11 characters long maximum
