@@ -4,9 +4,9 @@ L4DIR    ?= $(PKGDIR)/../..
 TARGET	:= Dummy_Crypto_client
 SRC_CC	:= client.cc 
 
-CXXFLAGS += -I$(L4DIR)/pkg/user_shared
+CXXFLAGS += -I$(L4DIR)/pkg/DataspaceEndpoint
 
-REQUIRES_LIBS         = libio-io libstdc++ cxx_libc_io cxx_io libpthread
+REQUIRES_LIBS         = libdataspaceendpoint libio-io libstdc++ cxx_libc_io cxx_io libpthread
 # this inclusde in the over path of pkg directories where no code
 #include $(L4DIR)/mk/subdir.mk 
 
